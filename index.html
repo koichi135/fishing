@@ -2,35 +2,48 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ミノー ルアーアクション 3Dシミュレーター</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #04121f; }
-  body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif; }
-  #app { width: 100%; height: 100%; display: block; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+    position: fixed; inset: 0; /* iOSのスクロールバウンス防止 */
+  }
+  #app { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
   #panel {
     position: absolute; top: 12px; left: 12px; width: 270px;
     background: rgba(6, 22, 38, 0.82); backdrop-filter: blur(6px);
     border: 1px solid rgba(120, 190, 255, 0.25); border-radius: 10px;
     color: #dcecfa; padding: 14px 16px; font-size: 13px; user-select: none;
+    -webkit-user-select: none; touch-action: manipulation;
   }
-  #panel h1 { font-size: 15px; margin-bottom: 10px; color: #8fd0ff; letter-spacing: 0.5px; }
+  #panelHead { display: flex; justify-content: space-between; align-items: center; }
+  #panel h1 { font-size: 15px; color: #8fd0ff; letter-spacing: 0.5px; }
+  #btnToggle {
+    flex: none; width: 34px; height: 30px; padding: 0; font-size: 14px;
+    background: rgba(120, 190, 255, 0.15); color: #8fd0ff;
+  }
+  #controls { margin-top: 10px; }
+  #panel.collapsed #controls { display: none; }
   .row { margin-bottom: 10px; }
   .row label { display: flex; justify-content: space-between; margin-bottom: 3px; }
   .row label .val { color: #ffd479; font-variant-numeric: tabular-nums; }
-  input[type="range"] { width: 100%; accent-color: #4aa3e8; }
+  input[type="range"] { width: 100%; height: 26px; accent-color: #4aa3e8; touch-action: pan-x; }
   select {
     width: 100%; background: #0b2a44; color: #dcecfa; border: 1px solid #2b5a83;
-    border-radius: 5px; padding: 4px 6px; font-size: 13px;
+    border-radius: 5px; padding: 6px; font-size: 13px;
   }
   .buttons { display: flex; gap: 8px; margin-top: 12px; }
   button {
-    flex: 1; padding: 8px 0; font-size: 13px; font-weight: bold; cursor: pointer;
+    flex: 1; padding: 10px 0; font-size: 13px; font-weight: bold; cursor: pointer;
     border: none; border-radius: 6px; color: #fff; transition: filter 0.15s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
   button:hover { filter: brightness(1.2); }
+  button:active { filter: brightness(1.35); }
   #btnRetrieve { background: #1d7a46; }
   #btnRetrieve.stopped { background: #a33c2e; }
   #btnTwitch { background: #8a6a1d; }
@@ -46,7 +59,25 @@
   #hint {
     position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
     color: rgba(220, 236, 250, 0.55); font-size: 12px; pointer-events: none;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6); white-space: nowrap;
+  }
+
+  /* ---- スマホ: パネルを下部シート化、タッチ領域を拡大 ---- */
+  @media (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
+    #panel {
+      top: auto; left: 0; right: 0; bottom: 0; width: auto;
+      border-radius: 14px 14px 0 0; border-bottom: none;
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+      font-size: 14px;
+    }
+    #panel h1 { font-size: 14px; }
+    .buttons { margin-top: 10px; }
+    button { padding: 13px 0; font-size: 14px; }
+    input[type="range"] { height: 34px; }
+    select { padding: 9px 6px; font-size: 14px; }
+    #readout { margin-top: 8px; padding-top: 8px; }
+    #readout .v { font-size: 14px; }
+    #hint { top: calc(8px + env(safe-area-inset-top)); bottom: auto; font-size: 11px; }
   }
 </style>
 <script type="importmap">
@@ -62,26 +93,31 @@
 <canvas id="app"></canvas>
 
 <div id="panel">
-  <h1>🎣 ミノー アクションシミュレーター</h1>
-  <div class="row">
-    <label>リトリーブ速度 <span class="val" id="vSpeed">1.2 m/s</span></label>
-    <input type="range" id="speed" min="0.2" max="3.0" step="0.1" value="1.2">
+  <div id="panelHead">
+    <h1>🎣 ミノーシミュレーター</h1>
+    <button id="btnToggle" aria-label="設定の表示切替">▾</button>
   </div>
-  <div class="row">
-    <label>潜行レンジ(リップ) <span class="val" id="vRange">1.5 m</span></label>
-    <input type="range" id="range" min="0.3" max="3.5" step="0.1" value="1.5">
-  </div>
-  <div class="row">
-    <label>アクション強さ <span class="val" id="vWobble">60%</span></label>
-    <input type="range" id="wobble" min="0" max="100" step="5" value="60">
-  </div>
-  <div class="row">
-    <label>ルアータイプ</label>
-    <select id="type">
-      <option value="floating" selected>フローティング</option>
-      <option value="suspend">サスペンド</option>
-      <option value="sinking">シンキング</option>
-    </select>
+  <div id="controls">
+    <div class="row">
+      <label>リトリーブ速度 <span class="val" id="vSpeed">1.2 m/s</span></label>
+      <input type="range" id="speed" min="0.2" max="3.0" step="0.1" value="1.2">
+    </div>
+    <div class="row">
+      <label>潜行レンジ(リップ) <span class="val" id="vRange">1.5 m</span></label>
+      <input type="range" id="range" min="0.3" max="3.5" step="0.1" value="1.5">
+    </div>
+    <div class="row">
+      <label>アクション強さ <span class="val" id="vWobble">60%</span></label>
+      <input type="range" id="wobble" min="0" max="100" step="5" value="60">
+    </div>
+    <div class="row">
+      <label>ルアータイプ</label>
+      <select id="type">
+        <option value="floating" selected>フローティング</option>
+        <option value="suspend">サスペンド</option>
+        <option value="sinking">シンキング</option>
+      </select>
+    </div>
   </div>
   <div class="buttons">
     <button id="btnRetrieve">■ 停止</button>
@@ -95,7 +131,7 @@
   </div>
 </div>
 
-<div id="hint">ドラッグ: 視点回転 / ホイール: ズーム / 右ドラッグ: 平行移動</div>
+<div id="hint">ドラッグ / スワイプ: 視点回転 ・ ホイール / ピンチ: ズーム</div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -315,6 +351,16 @@ btnRet.addEventListener('click', () => {
   btnRet.textContent = state.retrieving ? '■ 停止' : '▶ リトリーブ';
   btnRet.classList.toggle('stopped', !state.retrieving);
 });
+
+// 設定パネルの折りたたみ(スマホでは画面を広く使うため初期状態で閉じる)
+const panel = document.getElementById('panel');
+const btnToggle = document.getElementById('btnToggle');
+function setCollapsed(c) {
+  panel.classList.toggle('collapsed', c);
+  btnToggle.textContent = c ? '▴' : '▾';
+}
+btnToggle.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
+if (window.matchMedia('(max-width: 640px)').matches) setCollapsed(true);
 
 ui.speed.addEventListener('input', () =>
   document.getElementById('vSpeed').textContent = (+ui.speed.value).toFixed(1) + ' m/s');
