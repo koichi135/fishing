@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ミノー ルアーアクション 3Dシミュレーター</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #04121f; }
+  body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif; }
+  #app { width: 100%; height: 100%; display: block; }
+
+  #panel {
+    position: absolute; top: 12px; left: 12px; width: 270px;
+    background: rgba(6, 22, 38, 0.82); backdrop-filter: blur(6px);
+    border: 1px solid rgba(120, 190, 255, 0.25); border-radius: 10px;
+    color: #dcecfa; padding: 14px 16px; font-size: 13px; user-select: none;
+  }
+  #panel h1 { font-size: 15px; margin-bottom: 10px; color: #8fd0ff; letter-spacing: 0.5px; }
+  .row { margin-bottom: 10px; }
+  .row label { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .row label .val { color: #ffd479; font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: #4aa3e8; }
+  select {
+    width: 100%; background: #0b2a44; color: #dcecfa; border: 1px solid #2b5a83;
+    border-radius: 5px; padding: 4px 6px; font-size: 13px;
+  }
+  .buttons { display: flex; gap: 8px; margin-top: 12px; }
+  button {
+    flex: 1; padding: 8px 0; font-size: 13px; font-weight: bold; cursor: pointer;
+    border: none; border-radius: 6px; color: #fff; transition: filter 0.15s;
+  }
+  button:hover { filter: brightness(1.2); }
+  #btnRetrieve { background: #1d7a46; }
+  #btnRetrieve.stopped { background: #a33c2e; }
+  #btnTwitch { background: #8a6a1d; }
+  #btnCast { background: #2b5a9c; }
+
+  #readout {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(120,190,255,0.2);
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; text-align: center;
+  }
+  #readout .k { font-size: 11px; color: #7fa8c9; }
+  #readout .v { font-size: 15px; color: #fff; font-variant-numeric: tabular-nums; }
+
+  #hint {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    color: rgba(220, 236, 250, 0.55); font-size: 12px; pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="app"></canvas>
+
+<div id="panel">
+  <h1>🎣 ミノー アクションシミュレーター</h1>
+  <div class="row">
+    <label>リトリーブ速度 <span class="val" id="vSpeed">1.2 m/s</span></label>
+    <input type="range" id="speed" min="0.2" max="3.0" step="0.1" value="1.2">
+  </div>
+  <div class="row">
+    <label>潜行レンジ(リップ) <span class="val" id="vRange">1.5 m</span></label>
+    <input type="range" id="range" min="0.3" max="3.5" step="0.1" value="1.5">
+  </div>
+  <div class="row">
+    <label>アクション強さ <span class="val" id="vWobble">60%</span></label>
+    <input type="range" id="wobble" min="0" max="100" step="5" value="60">
+  </div>
+  <div class="row">
+    <label>ルアータイプ</label>
+    <select id="type">
+      <option value="floating" selected>フローティング</option>
+      <option value="suspend">サスペンド</option>
+      <option value="sinking">シンキング</option>
+    </select>
+  </div>
+  <div class="buttons">
+    <button id="btnRetrieve">■ 停止</button>
+    <button id="btnTwitch">トゥイッチ</button>
+    <button id="btnCast">再キャスト</button>
+  </div>
+  <div id="readout">
+    <div><div class="k">深度</div><div class="v" id="rDepth">0.0 m</div></div>
+    <div><div class="k">速度</div><div class="v" id="rSpeed">0.0 m/s</div></div>
+    <div><div class="k">残り距離</div><div class="v" id="rDist">18 m</div></div>
+  </div>
+</div>
+
+<div id="hint">ドラッグ: 視点回転 / ホイール: ズーム / 右ドラッグ: 平行移動</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------------------------------------------------------------- 基本設定
+const CAST_DIST = 18;        // キャスト距離 [m]
+const BOTTOM_Y  = -4;        // 底の深さ [m]
+const ROD_TIP   = new THREE.Vector3(0, 1.6, 0); // ロッドティップ位置
+
+const canvas   = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x06304e);
+scene.fog = new THREE.FogExp2(0x06304e, 0.055);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 200);
+camera.position.set(CAST_DIST * 0.7, 0.6, 3.5);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxDistance = 30;
+controls.minDistance = 0.4;
+
+// ---------------------------------------------------------------- ライティング
+scene.add(new THREE.AmbientLight(0x5580aa, 0.9));
+const sun = new THREE.DirectionalLight(0xcfe8ff, 1.6);
+sun.position.set(5, 10, 3);
+scene.add(sun);
+
+// ---------------------------------------------------------------- 水面
+const surfGeo = new THREE.PlaneGeometry(60, 60, 48, 48);
+const surface = new THREE.Mesh(
+  surfGeo,
+  new THREE.MeshPhongMaterial({
+    color: 0x2a7ab8, transparent: true, opacity: 0.35,
+    side: THREE.DoubleSide, shininess: 120, specular: 0x99ccff,
+  })
+);
+surface.rotation.x = -Math.PI / 2;
+scene.add(surface);
+const surfBase = surfGeo.attributes.position.array.slice();
+
+// ---------------------------------------------------------------- 底・岩
+const botGeo = new THREE.PlaneGeometry(60, 60, 40, 40);
+{
+  const p = botGeo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    p.setZ(i, Math.sin(p.getX(i) * 0.6) * 0.25 + Math.cos(p.getY(i) * 0.4) * 0.3 + Math.random() * 0.08);
+  }
+  botGeo.computeVertexNormals();
+}
+const bottom = new THREE.Mesh(botGeo, new THREE.MeshStandardMaterial({ color: 0x8a7a55, roughness: 1 }));
+bottom.rotation.x = -Math.PI / 2;
+bottom.position.y = BOTTOM_Y;
+scene.add(bottom);
+
+const rockMat = new THREE.MeshStandardMaterial({ color: 0x6b6458, roughness: 0.9 });
+for (let i = 0; i < 14; i++) {
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25 + Math.random() * 0.5, 0), rockMat);
+  rock.position.set((Math.random() - 0.5) * 40, BOTTOM_Y + 0.15, (Math.random() - 0.5) * 30);
+  rock.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+  rock.scale.y = 0.6;
+  scene.add(rock);
+}
+
+// ---------------------------------------------------------------- 浮遊物(プランクトン)
+const partGeo = new THREE.BufferGeometry();
+{
+  const n = 600, arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3]     = (Math.random() - 0.5) * 40;
+    arr[i * 3 + 1] = BOTTOM_Y + Math.random() * -BOTTOM_Y;
+    arr[i * 3 + 2] = (Math.random() - 0.5) * 30;
+  }
+  partGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+}
+const particles = new THREE.Points(partGeo,
+  new THREE.PointsMaterial({ color: 0x9fc8e8, size: 0.03, transparent: true, opacity: 0.5 }));
+scene.add(particles);
+
+// ---------------------------------------------------------------- ロッドティップ
+{
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  tip.position.copy(ROD_TIP);
+  scene.add(tip);
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, 2.4, 8),
+    new THREE.MeshStandardMaterial({ color: 0x222222 }));
+  rod.position.set(-0.6, ROD_TIP.y + 0.55, 0);
+  rod.rotation.z = -0.5;
+  scene.add(rod);
+}
+
+// ---------------------------------------------------------------- ミノー本体
+// ノーズが -X 方向(ロッド側)を向くように組み立てる
+const lure = new THREE.Group();
+const minnow = new THREE.Group();
+lure.add(minnow);
+scene.add(lure);
+
+{
+  const L = 0.11; // 全長 11cm
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xc8dce8, metalness: 0.75, roughness: 0.25,
+  });
+  const backMat = new THREE.MeshStandardMaterial({
+    color: 0x1c4d3a, metalness: 0.5, roughness: 0.4,
+  });
+
+  // ボディ(細長い回転体)
+  const profile = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    profile.push(new THREE.Vector2(Math.sin(t * Math.PI) ** 0.8 * 0.013 + 0.0005, (t - 0.45) * L));
+  }
+  const body = new THREE.Mesh(new THREE.LatheGeometry(profile, 20), bodyMat);
+  body.rotation.z = Math.PI / 2; // 長軸をX軸に
+  body.scale.set(1, 1, 0.55);    // 側扁(左右に平たく)
+  minnow.add(body);
+
+  // 背中(上半分の色)
+  const back = new THREE.Mesh(new THREE.LatheGeometry(profile, 20, 0, Math.PI), backMat);
+  back.rotation.z = Math.PI / 2;
+  back.scale.set(1.02, 1.02, 0.56);
+  minnow.add(back);
+
+  // リップ(潜行板)
+  const lip = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.028, 0.035),
+    new THREE.MeshPhysicalMaterial({
+      color: 0xcfe8ff, transparent: true, opacity: 0.45,
+      side: THREE.DoubleSide, roughness: 0.1,
+    })
+  );
+  lip.position.set(-L * 0.5, -0.012, 0);
+  lip.rotation.set(0, Math.PI / 2, 0);
+  lip.rotateX(-0.9); // 前傾
+  minnow.add(lip);
+
+  // 目
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+  const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffcc33 });
+  for (const s of [1, -1]) {
+    const w = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 8), eyeWhiteMat);
+    w.position.set(-L * 0.38, 0.004, s * 0.0075);
+    minnow.add(w);
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.0026, 8, 8), eyeMat);
+    e.position.set(-L * 0.395, 0.004, s * 0.009);
+    minnow.add(e);
+  }
+
+  // 尾びれ
+  const tail = new THREE.Mesh(
+    new THREE.ConeGeometry(0.016, 0.03, 4),
+    new THREE.MeshStandardMaterial({ color: 0x9fb8c8, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+  );
+  tail.position.set(L * 0.58, 0, 0);
+  tail.rotation.z = Math.PI / 2;
+  tail.scale.z = 0.15;
+  minnow.add(tail);
+
+  // フック(簡略表現: リング)
+  const hookMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9, roughness: 0.3 });
+  for (const hx of [-L * 0.12, L * 0.38]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.007, 0.0012, 6, 14), hookMat);
+    ring.position.set(hx, -0.014, 0);
+    minnow.add(ring);
+  }
+}
+
+// ---------------------------------------------------------------- ライン(糸)と軌跡
+const lineGeo = new THREE.BufferGeometry();
+const lineObj = new THREE.Line(lineGeo,
+  new THREE.LineBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.55 }));
+scene.add(lineObj);
+
+const TRAIL_MAX = 500;
+const trailPts = [];
+const trailGeo = new THREE.BufferGeometry();
+const trailObj = new THREE.Line(trailGeo,
+  new THREE.LineBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.4 }));
+scene.add(trailObj);
+
+// ---------------------------------------------------------------- シミュレーション状態
+const state = {
+  pos: new THREE.Vector3(CAST_DIST, -0.02, 0),
+  vx: 0,               // 水平速度(-X方向が正のリトリーブ)
+  vy: 0,
+  retrieving: true,
+  twitch: 0,           // トゥイッチの残りエネルギー
+  time: 0,
+};
+
+const ui = {
+  speed:  document.getElementById('speed'),
+  range:  document.getElementById('range'),
+  wobble: document.getElementById('wobble'),
+  type:   document.getElementById('type'),
+};
+
+function cast() {
+  state.pos.set(CAST_DIST, -0.02, 0);
+  state.vx = 0; state.vy = 0; state.twitch = 0;
+  trailPts.length = 0;
+}
+
+document.getElementById('btnCast').addEventListener('click', cast);
+document.getElementById('btnTwitch').addEventListener('click', () => { state.twitch = 1; });
+const btnRet = document.getElementById('btnRetrieve');
+btnRet.addEventListener('click', () => {
+  state.retrieving = !state.retrieving;
+  btnRet.textContent = state.retrieving ? '■ 停止' : '▶ リトリーブ';
+  btnRet.classList.toggle('stopped', !state.retrieving);
+});
+
+ui.speed.addEventListener('input', () =>
+  document.getElementById('vSpeed').textContent = (+ui.speed.value).toFixed(1) + ' m/s');
+ui.range.addEventListener('input', () =>
+  document.getElementById('vRange').textContent = (+ui.range.value).toFixed(1) + ' m');
+ui.wobble.addEventListener('input', () =>
+  document.getElementById('vWobble').textContent = ui.wobble.value + '%');
+
+// ---------------------------------------------------------------- 物理更新
+function updatePhysics(dt) {
+  const t = state.time;
+  const setSpeed  = +ui.speed.value;
+  const diveRange = +ui.range.value;
+  const intensity = +ui.wobble.value / 100;
+
+  // --- 水平速度: リトリーブ中は設定速度へ、停止中は減速して滑走
+  const targetVx = state.retrieving ? setSpeed : 0;
+  state.vx += (targetVx - state.vx) * Math.min(1, dt * 3.0);
+
+  // --- トゥイッチ: 瞬間的な加速(ダート)
+  if (state.twitch > 0) {
+    state.vx += state.twitch * 9 * dt;
+    state.twitch = Math.max(0, state.twitch - dt * 3);
+  }
+
+  const speed = state.vx; // 実効スピード(ウォブリング・潜行の駆動源)
+
+  // --- 潜行: リップの水受けで速度に応じた深度へ向かう
+  const still = speed < 0.08;
+  if (!still) {
+    const targetY = -diveRange * Math.min(1, speed / 1.5);
+    state.vy += ((targetY - state.pos.y) * 1.2 - state.vy) * Math.min(1, dt * 4);
+  } else {
+    // 停止中: ルアータイプによる浮力挙動
+    const buoy = { floating: 0.22, suspend: 0.0, sinking: -0.13 }[ui.type.value];
+    state.vy += (buoy - state.vy) * Math.min(1, dt * 2);
+  }
+  state.vy = THREE.MathUtils.clamp(state.vy, -0.8, 0.5);
+
+  // --- 位置更新
+  state.pos.x -= state.vx * dt;
+  state.pos.y += state.vy * dt;
+  state.pos.y = THREE.MathUtils.clamp(state.pos.y, BOTTOM_Y + 0.1, -0.02);
+
+  // 巻き取り完了で自動再キャスト
+  if (state.pos.x < 1.2) cast();
+
+  // --- ウォブリング(ロール)+ ウィグリング(ヨー)
+  const speedFac = Math.min(1, speed / 1.2);
+  const freq = 2.0 + speed * 2.8;                      // 速いほど高ピッチ
+  const phase = 2 * Math.PI * freq * t;
+  const roll  = intensity * speedFac * 0.55 * Math.sin(phase);
+  const yaw   = intensity * speedFac * 0.30 * Math.sin(phase + Math.PI / 2)
+              + state.twitch * 0.9 * Math.sin(t * 31); // トゥイッチでダート
+  // 体の左右スライド(S字の泳ぎ)
+  const sway = intensity * speedFac * 0.05 * Math.sin(phase + Math.PI / 2);
+
+  // --- ピッチ: 潜行中は頭下がり、浮上中は頭上がり
+  const divePitch = (!still ? 0.25 * Math.min(1, diveRange / 2) : 0) - state.vy * 0.9;
+
+  lure.position.set(state.pos.x, state.pos.y, state.pos.z + sway);
+  minnow.rotation.set(roll, yaw, THREE.MathUtils.clamp(divePitch, -0.7, 0.7));
+}
+
+// ---------------------------------------------------------------- 描画補助
+function updateLine() {
+  const nose = new THREE.Vector3(-0.055, 0, 0).applyEuler(minnow.rotation).add(lure.position);
+  const mid = ROD_TIP.clone().add(nose).multiplyScalar(0.5);
+  mid.y -= 0.15 + nose.distanceTo(ROD_TIP) * 0.012; // ラインスラック(たるみ)
+  const curve = new THREE.QuadraticBezierCurve3(ROD_TIP, mid, nose);
+  lineGeo.setFromPoints(curve.getPoints(40));
+}
+
+let trailSkip = 0;
+function updateTrail() {
+  if (++trailSkip % 2) return;
+  trailPts.push(lure.position.clone());
+  if (trailPts.length > TRAIL_MAX) trailPts.shift();
+  if (trailPts.length > 1) trailGeo.setFromPoints(trailPts);
+}
+
+function updateSurface(t) {
+  const p = surfGeo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = surfBase[i * 3], y = surfBase[i * 3 + 1];
+    p.setZ(i, Math.sin(x * 0.7 + t * 1.1) * 0.04 + Math.cos(y * 0.5 + t * 0.8) * 0.05);
+  }
+  p.needsUpdate = true;
+}
+
+function updateReadout() {
+  document.getElementById('rDepth').textContent = (-state.pos.y).toFixed(1) + ' m';
+  document.getElementById('rSpeed').textContent = state.vx.toFixed(1) + ' m/s';
+  document.getElementById('rDist').textContent  = Math.max(0, state.pos.x).toFixed(0) + ' m';
+}
+
+// ---------------------------------------------------------------- メインループ
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  state.time += dt;
+
+  updatePhysics(dt);
+  updateLine();
+  updateTrail();
+  updateSurface(state.time);
+  updateReadout();
+
+  // カメラはルアーを緩やかに追従
+  controls.target.lerp(lure.position, 0.06);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
