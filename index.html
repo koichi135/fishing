@@ -3,81 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ミノー ルアーアクション 3Dシミュレーター</title>
+<title>フィッシングゲーム - シーバスルアー釣り</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #04121f; }
   body {
     font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
     position: fixed; inset: 0; /* iOSのスクロールバウンス防止 */
+    user-select: none; -webkit-user-select: none;
   }
   #app { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
-  #panel {
-    position: absolute; top: 12px; left: 12px; width: 270px;
-    background: rgba(6, 22, 38, 0.82); backdrop-filter: blur(6px);
-    border: 1px solid rgba(120, 190, 255, 0.25); border-radius: 10px;
-    color: #dcecfa; padding: 14px 16px; font-size: 13px; user-select: none;
-    -webkit-user-select: none; touch-action: manipulation;
+  button {
+    font-family: inherit; border: none; border-radius: 12px; color: #fff;
+    font-weight: bold; cursor: pointer; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent; transition: filter 0.15s, transform 0.1s;
   }
-  #panelHead { display: flex; justify-content: space-between; align-items: center; }
-  #panel h1 { font-size: 15px; color: #8fd0ff; letter-spacing: 0.5px; }
-  #btnToggle {
-    flex: none; width: 34px; height: 30px; padding: 0; font-size: 14px;
-    background: rgba(120, 190, 255, 0.15); color: #8fd0ff;
+  button:active { filter: brightness(1.3); transform: scale(0.97); }
+  button.disabled { opacity: 0.35; pointer-events: none; }
+
+  /* ---- 上部HUD ---- */
+  #hud {
+    position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 10px; right: 10px;
+    display: flex; gap: 6px; justify-content: flex-start; pointer-events: none;
   }
-  #controls { margin-top: 10px; }
-  #panel.collapsed #controls { display: none; }
+  .chip {
+    background: rgba(6, 22, 38, 0.72); backdrop-filter: blur(4px);
+    border: 1px solid rgba(120, 190, 255, 0.25); border-radius: 8px;
+    color: #dcecfa; padding: 4px 10px; font-size: 12px; text-align: center;
+  }
+  .chip .k { font-size: 10px; color: #7fa8c9; display: block; }
+  .chip .v { font-size: 14px; color: #fff; font-variant-numeric: tabular-nums; }
+
+  /* ---- テンションゲージ(ファイト中) ---- */
+  #tensionWrap {
+    position: absolute; top: calc(58px + env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%); width: min(78vw, 340px); display: none;
+  }
+  #tensionWrap.show { display: block; }
+  #tensionLabel { color: #dcecfa; font-size: 11px; text-align: center; margin-bottom: 3px; text-shadow: 0 1px 3px #000; }
+  #tensionBar {
+    height: 16px; border-radius: 8px; background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.3); overflow: hidden;
+  }
+  #tensionFill {
+    height: 100%; width: 0%; border-radius: 7px;
+    background: #3ecf6e; transition: width 0.08s linear, background 0.2s;
+  }
+  #tensionFill.warn { background: #ffd24a; }
+  #tensionFill.danger { background: #ff4a3c; }
+  #tensionWrap.danger #tensionBar { animation: shake 0.12s infinite; border-color: #ff6a5c; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); }
+  }
+
+  /* ---- 中央メッセージ ---- */
+  #msg {
+    position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%);
+    color: #fff; font-size: clamp(22px, 6vw, 34px); font-weight: bold; text-align: center;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.75); pointer-events: none;
+    opacity: 0; transition: opacity 0.25s; white-space: pre-line; letter-spacing: 1px;
+  }
+  #msg.show { opacity: 1; }
+
+  #hint {
+    position: absolute; bottom: calc(120px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    color: rgba(220, 236, 250, 0.75); font-size: 12px; pointer-events: none; text-align: center;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7); white-space: pre-line; width: 92vw;
+  }
+
+  /* ---- キャストゲージ ---- */
+  #powerWrap {
+    position: absolute; bottom: calc(140px + env(safe-area-inset-bottom)); left: 50%;
+    transform: translateX(-50%); width: min(70vw, 300px); display: none;
+  }
+  #powerWrap.show { display: block; }
+  #powerBar {
+    height: 20px; border-radius: 10px; background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.35); overflow: hidden;
+  }
+  #powerFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #4aa3e8, #3ecf6e 60%, #ffd24a 85%, #ff8a3c);
+  }
+  #powerText { text-align: center; color: #fff; font-size: 12px; margin-top: 4px; text-shadow: 0 1px 3px #000; }
+
+  /* ---- 下部操作ボタン ---- */
+  #barReady, #barPlay {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+    display: none; gap: 10px; justify-content: center; align-items: stretch;
+  }
+  #barReady.show, #barPlay.show { display: flex; }
+  #btnCast {
+    flex: 1; max-width: 420px; padding: 20px 0; font-size: 18px;
+    background: linear-gradient(180deg, #2b6ab4, #1d4a86);
+    box-shadow: 0 4px 14px rgba(0, 60, 130, 0.55);
+  }
+  #btnReel {
+    flex: 2; padding: 20px 0; font-size: 18px;
+    background: linear-gradient(180deg, #1d9a56, #14713e);
+    box-shadow: 0 4px 14px rgba(0, 90, 40, 0.5);
+  }
+  #btnReel.on { background: linear-gradient(180deg, #27c06e, #17864a); filter: brightness(1.15); }
+  #btnTwitch {
+    flex: 1; padding: 20px 0; font-size: 15px;
+    background: linear-gradient(180deg, #b08a2a, #7d611c);
+  }
+
+  /* ---- アワセ(フッキング)オーバーレイ ---- */
+  #strike {
+    position: fixed; inset: 0; display: none; z-index: 30;
+    background: radial-gradient(circle, rgba(255,80,40,0.12), rgba(255,40,20,0.3));
+    align-items: center; justify-content: center; flex-direction: column; gap: 8px;
+    touch-action: manipulation;
+  }
+  #strike.show { display: flex; }
+  #strike .big {
+    color: #ffe14a; font-size: clamp(44px, 13vw, 84px); font-weight: 900;
+    text-shadow: 0 0 24px rgba(255, 120, 0, 0.9), 0 3px 6px #000;
+    animation: pulse 0.35s infinite alternate;
+  }
+  #strike .sub { color: #fff; font-size: 15px; text-shadow: 0 1px 4px #000; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
+
+  /* ---- リザルト ---- */
+  #result {
+    position: fixed; inset: 0; display: none; z-index: 40;
+    background: rgba(2, 10, 20, 0.6); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  #result.show { display: flex; }
+  #resultCard {
+    background: linear-gradient(180deg, #0d2c48, #081c30); width: min(92vw, 360px);
+    border: 1px solid rgba(120, 190, 255, 0.4); border-radius: 18px;
+    padding: 24px 22px calc(20px + env(safe-area-inset-bottom)); text-align: center; color: #dcecfa;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  }
+  #resultCard .icon { font-size: 56px; }
+  #resultCard h2 { color: #8fd0ff; font-size: 20px; margin: 6px 0 2px; }
+  #rSpecies { font-size: 24px; color: #ffd479; font-weight: bold; margin: 8px 0 2px; }
+  #rBadge {
+    display: none; margin: 6px auto 0; width: fit-content; padding: 3px 12px; border-radius: 20px;
+    background: #c9312b; color: #fff; font-size: 12px; font-weight: bold;
+  }
+  #rBadge.show { display: block; animation: pulse 0.5s infinite alternate; }
+  #rStats { display: flex; justify-content: center; gap: 18px; margin: 14px 0 6px; }
+  #rStats .k { font-size: 11px; color: #7fa8c9; }
+  #rStats .v { font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; }
+  #rMeta { font-size: 12px; color: #9fc0da; margin-bottom: 16px; }
+  #btnNext { width: 100%; padding: 15px 0; font-size: 16px; background: linear-gradient(180deg, #2b6ab4, #1d4a86); }
+
+  /* ---- 設定 ---- */
+  #btnGear {
+    position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px;
+    width: 40px; height: 36px; font-size: 17px; background: rgba(6, 22, 38, 0.72);
+    border: 1px solid rgba(120, 190, 255, 0.25); border-radius: 8px; z-index: 20;
+  }
+  #settings {
+    position: absolute; top: calc(50px + env(safe-area-inset-top)); right: 10px; width: 250px;
+    background: rgba(6, 22, 38, 0.92); backdrop-filter: blur(6px);
+    border: 1px solid rgba(120, 190, 255, 0.3); border-radius: 12px;
+    color: #dcecfa; padding: 14px 16px; font-size: 13px; display: none; z-index: 20;
+  }
+  #settings.show { display: block; }
   .row { margin-bottom: 10px; }
   .row label { display: flex; justify-content: space-between; margin-bottom: 3px; }
   .row label .val { color: #ffd479; font-variant-numeric: tabular-nums; }
-  input[type="range"] { width: 100%; height: 26px; accent-color: #4aa3e8; touch-action: pan-x; }
+  input[type="range"] { width: 100%; height: 30px; accent-color: #4aa3e8; touch-action: pan-x; }
   select {
     width: 100%; background: #0b2a44; color: #dcecfa; border: 1px solid #2b5a83;
-    border-radius: 5px; padding: 6px; font-size: 13px;
-  }
-  .buttons { display: flex; gap: 8px; margin-top: 12px; }
-  button {
-    flex: 1; padding: 10px 0; font-size: 13px; font-weight: bold; cursor: pointer;
-    border: none; border-radius: 6px; color: #fff; transition: filter 0.15s;
-    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-  }
-  button:hover { filter: brightness(1.2); }
-  button:active { filter: brightness(1.35); }
-  #btnRetrieve { background: #1d7a46; }
-  #btnRetrieve.stopped { background: #a33c2e; }
-  #btnTwitch { background: #8a6a1d; }
-  #btnCast { background: #2b5a9c; }
-
-  #readout {
-    margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(120,190,255,0.2);
-    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; text-align: center;
-  }
-  #readout .k { font-size: 11px; color: #7fa8c9; }
-  #readout .v { font-size: 15px; color: #fff; font-variant-numeric: tabular-nums; }
-
-  #hint {
-    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-    color: rgba(220, 236, 250, 0.55); font-size: 12px; pointer-events: none;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.6); white-space: nowrap;
-  }
-
-  /* ---- スマホ: パネルを下部シート化、タッチ領域を拡大 ---- */
-  @media (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
-    #panel {
-      top: auto; left: 0; right: 0; bottom: 0; width: auto;
-      border-radius: 14px 14px 0 0; border-bottom: none;
-      padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-      font-size: 14px;
-    }
-    #panel h1 { font-size: 14px; }
-    .buttons { margin-top: 10px; }
-    button { padding: 13px 0; font-size: 14px; }
-    input[type="range"] { height: 34px; }
-    select { padding: 9px 6px; font-size: 14px; }
-    #readout { margin-top: 8px; padding-top: 8px; }
-    #readout .v { font-size: 14px; }
-    #hint { top: calc(8px + env(safe-area-inset-top)); bottom: auto; font-size: 11px; }
+    border-radius: 5px; padding: 8px 6px; font-size: 14px;
   }
 </style>
 <script type="importmap">
@@ -92,55 +188,87 @@
 <body>
 <canvas id="app"></canvas>
 
-<div id="panel">
-  <div id="panelHead">
-    <h1>🎣 ミノーシミュレーター</h1>
-    <button id="btnToggle" aria-label="設定の表示切替">▾</button>
-  </div>
-  <div id="controls">
-    <div class="row">
-      <label>リトリーブ速度 <span class="val" id="vSpeed">1.2 m/s</span></label>
-      <input type="range" id="speed" min="0.2" max="3.0" step="0.1" value="1.2">
+<div id="hud">
+  <div class="chip"><span class="k">距離</span><span class="v" id="hDist">- m</span></div>
+  <div class="chip"><span class="k">深度</span><span class="v" id="hDepth">- m</span></div>
+  <div class="chip"><span class="k">釣果</span><span class="v" id="hCatch">0 匹</span></div>
+</div>
+
+<div id="tensionWrap">
+  <div id="tensionLabel">ライン テンション</div>
+  <div id="tensionBar"><div id="tensionFill"></div></div>
+</div>
+
+<div id="msg"></div>
+<div id="hint"></div>
+
+<div id="powerWrap">
+  <div id="powerBar"><div id="powerFill"></div></div>
+  <div id="powerText">パワー 0%</div>
+</div>
+
+<div id="barReady" class="show">
+  <button id="btnCast">🎣 長押しでキャスト</button>
+</div>
+<div id="barPlay">
+  <button id="btnReel">🌀 リール(長押し)</button>
+  <button id="btnTwitch">⚡ トゥイッチ</button>
+</div>
+
+<div id="strike">
+  <div class="big">アワセ!!</div>
+  <div class="sub">画面をタップ!</div>
+</div>
+
+<div id="result">
+  <div id="resultCard">
+    <div class="icon">🎉</div>
+    <h2>キャッチ!</h2>
+    <div id="rSpecies">スズキ</div>
+    <div id="rBadge">🏆 自己記録更新!</div>
+    <div id="rStats">
+      <div><div class="k">サイズ</div><div class="v" id="rLen">- cm</div></div>
+      <div><div class="k">重さ</div><div class="v" id="rWeight">- kg</div></div>
+      <div><div class="k">自己記録</div><div class="v" id="rBest">- cm</div></div>
     </div>
-    <div class="row">
-      <label>潜行レンジ(リップ) <span class="val" id="vRange">1.5 m</span></label>
-      <input type="range" id="range" min="0.3" max="3.5" step="0.1" value="1.5">
-    </div>
-    <div class="row">
-      <label>アクション強さ <span class="val" id="vWobble">60%</span></label>
-      <input type="range" id="wobble" min="0" max="100" step="5" value="60">
-    </div>
-    <div class="row">
-      <label>ルアータイプ</label>
-      <select id="type">
-        <option value="floating" selected>フローティング</option>
-        <option value="suspend">サスペンド</option>
-        <option value="sinking">シンキング</option>
-      </select>
-    </div>
-  </div>
-  <div class="buttons">
-    <button id="btnRetrieve">■ 停止</button>
-    <button id="btnTwitch">トゥイッチ</button>
-    <button id="btnCast">再キャスト</button>
-  </div>
-  <div id="readout">
-    <div><div class="k">深度</div><div class="v" id="rDepth">0.0 m</div></div>
-    <div><div class="k">速度</div><div class="v" id="rSpeed">0.0 m/s</div></div>
-    <div><div class="k">残り距離</div><div class="v" id="rDist">18 m</div></div>
+    <div id="rMeta"></div>
+    <button id="btnNext">次のキャストへ 🎣</button>
   </div>
 </div>
 
-<div id="hint">ドラッグ / スワイプ: 視点回転 ・ ホイール / ピンチ: ズーム</div>
+<button id="btnGear" aria-label="設定">⚙</button>
+<div id="settings">
+  <div class="row">
+    <label>リトリーブ速度 <span class="val" id="vSpeed">1.3 m/s</span></label>
+    <input type="range" id="speed" min="0.5" max="2.4" step="0.1" value="1.3">
+  </div>
+  <div class="row">
+    <label>潜行レンジ(リップ) <span class="val" id="vRange">1.5 m</span></label>
+    <input type="range" id="range" min="0.3" max="3.5" step="0.1" value="1.5">
+  </div>
+  <div class="row">
+    <label>アクション強さ <span class="val" id="vWobble">60%</span></label>
+    <input type="range" id="wobble" min="0" max="100" step="5" value="60">
+  </div>
+  <div class="row">
+    <label>ルアータイプ</label>
+    <select id="type">
+      <option value="floating" selected>フローティング</option>
+      <option value="suspend">サスペンド</option>
+      <option value="sinking">シンキング</option>
+    </select>
+  </div>
+</div>
 
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ---------------------------------------------------------------- 基本設定
-const CAST_DIST = 18;        // キャスト距離 [m]
-const BOTTOM_Y  = -4;        // 底の深さ [m]
-const ROD_TIP   = new THREE.Vector3(0, 1.6, 0); // ロッドティップ位置
+// ================================================================ 基本設定
+const BOTTOM_Y = -4;                              // 底の深さ [m]
+const ROD_TIP  = new THREE.Vector3(0, 1.6, 0);    // ロッドティップ位置
+const MAX_LINE = 40;                              // ラインの最大長 [m]
+const FISH_N   = 5;                               // 同時に泳ぐ魚の数
 
 const canvas   = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -148,26 +276,29 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x06304e);
-scene.fog = new THREE.FogExp2(0x06304e, 0.055);
+const FOG_WATER = new THREE.FogExp2(0x06304e, 0.05);
+const FOG_AIR   = new THREE.FogExp2(0x9cc4de, 0.01);
+const BG_WATER  = new THREE.Color(0x06304e);
+const BG_AIR    = new THREE.Color(0x9cc8e8);
 
-const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 200);
-camera.position.set(CAST_DIST * 0.7, 0.6, 3.5);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 300);
+camera.position.set(-3.5, 2.6, 6);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.maxDistance = 30;
 controls.minDistance = 0.4;
+controls.enabled = false;
 
-// ---------------------------------------------------------------- ライティング
+// ================================================================ ライティング
 scene.add(new THREE.AmbientLight(0x5580aa, 0.9));
 const sun = new THREE.DirectionalLight(0xcfe8ff, 1.6);
 sun.position.set(5, 10, 3);
 scene.add(sun);
 
-// ---------------------------------------------------------------- 水面
-const surfGeo = new THREE.PlaneGeometry(60, 60, 48, 48);
+// ================================================================ 水面
+const surfGeo = new THREE.PlaneGeometry(90, 60, 56, 40);
 const surface = new THREE.Mesh(
   surfGeo,
   new THREE.MeshPhongMaterial({
@@ -176,11 +307,12 @@ const surface = new THREE.Mesh(
   })
 );
 surface.rotation.x = -Math.PI / 2;
+surface.position.x = 18;
 scene.add(surface);
 const surfBase = surfGeo.attributes.position.array.slice();
 
-// ---------------------------------------------------------------- 底・岩
-const botGeo = new THREE.PlaneGeometry(60, 60, 40, 40);
+// ================================================================ 底・岩・桟橋
+const botGeo = new THREE.PlaneGeometry(90, 60, 48, 36);
 {
   const p = botGeo.attributes.position;
   for (let i = 0; i < p.count; i++) {
@@ -190,47 +322,60 @@ const botGeo = new THREE.PlaneGeometry(60, 60, 40, 40);
 }
 const bottom = new THREE.Mesh(botGeo, new THREE.MeshStandardMaterial({ color: 0x8a7a55, roughness: 1 }));
 bottom.rotation.x = -Math.PI / 2;
-bottom.position.y = BOTTOM_Y;
+bottom.position.set(18, BOTTOM_Y, 0);
 scene.add(bottom);
 
 const rockMat = new THREE.MeshStandardMaterial({ color: 0x6b6458, roughness: 0.9 });
-for (let i = 0; i < 14; i++) {
+for (let i = 0; i < 18; i++) {
   const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25 + Math.random() * 0.5, 0), rockMat);
-  rock.position.set((Math.random() - 0.5) * 40, BOTTOM_Y + 0.15, (Math.random() - 0.5) * 30);
+  rock.position.set(2 + Math.random() * 45, BOTTOM_Y + 0.15, (Math.random() - 0.5) * 30);
   rock.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
   rock.scale.y = 0.6;
   scene.add(rock);
 }
 
-// ---------------------------------------------------------------- 浮遊物(プランクトン)
+{ // 桟橋(足場)
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0x6e5a3e, roughness: 0.9 });
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.18, 3.2), deckMat);
+  deck.position.set(-1.6, 0.42, 0);
+  scene.add(deck);
+  for (const [px, pz] of [[-3.0, -1.3], [-3.0, 1.3], [-0.4, -1.3], [-0.4, 1.3]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 4.6, 8), deckMat);
+    leg.position.set(px, 0.42 - 2.3, pz);
+    scene.add(leg);
+  }
+}
+
+// ================================================================ 浮遊物(プランクトン)
 const partGeo = new THREE.BufferGeometry();
 {
-  const n = 600, arr = new Float32Array(n * 3);
+  const n = 700, arr = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
-    arr[i * 3]     = (Math.random() - 0.5) * 40;
+    arr[i * 3]     = Math.random() * 48;
     arr[i * 3 + 1] = BOTTOM_Y + Math.random() * -BOTTOM_Y;
     arr[i * 3 + 2] = (Math.random() - 0.5) * 30;
   }
   partGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
 }
-const particles = new THREE.Points(partGeo,
-  new THREE.PointsMaterial({ color: 0x9fc8e8, size: 0.03, transparent: true, opacity: 0.5 }));
-scene.add(particles);
+scene.add(new THREE.Points(partGeo,
+  new THREE.PointsMaterial({ color: 0x9fc8e8, size: 0.03, transparent: true, opacity: 0.5 })));
 
-// ---------------------------------------------------------------- ロッドティップ
+// ================================================================ ロッド
+let rodMesh;
 {
   const tip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12),
     new THREE.MeshBasicMaterial({ color: 0xffffff }));
   tip.position.copy(ROD_TIP);
   scene.add(tip);
-  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, 2.4, 8),
+  rodMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, 2.4, 8),
     new THREE.MeshStandardMaterial({ color: 0x222222 }));
-  rod.position.set(-0.6, ROD_TIP.y + 0.55, 0);
-  rod.rotation.z = -0.5;
-  scene.add(rod);
+  rodMesh.geometry.translate(0, 1.2, 0); // 根本を原点に(曲げ演出用)
+  rodMesh.position.set(-1.1, 0.55, 0);
+  rodMesh.rotation.z = -0.5;
+  scene.add(rodMesh);
 }
 
-// ---------------------------------------------------------------- ミノー本体
+// ================================================================ ミノー(ルアー)
 // ノーズが -X 方向(ロッド側)を向くように組み立てる
 const lure = new THREE.Group();
 const minnow = new THREE.Group();
@@ -239,44 +384,33 @@ scene.add(lure);
 
 {
   const L = 0.11; // 全長 11cm
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: 0xc8dce8, metalness: 0.75, roughness: 0.25,
-  });
-  const backMat = new THREE.MeshStandardMaterial({
-    color: 0x1c4d3a, metalness: 0.5, roughness: 0.4,
-  });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xc8dce8, metalness: 0.75, roughness: 0.25 });
+  const backMat = new THREE.MeshStandardMaterial({ color: 0x1c4d3a, metalness: 0.5, roughness: 0.4 });
 
-  // ボディ(細長い回転体)
   const profile = [];
   for (let i = 0; i <= 20; i++) {
     const t = i / 20;
     profile.push(new THREE.Vector2(Math.sin(t * Math.PI) ** 0.8 * 0.013 + 0.0005, (t - 0.45) * L));
   }
   const body = new THREE.Mesh(new THREE.LatheGeometry(profile, 20), bodyMat);
-  body.rotation.z = Math.PI / 2; // 長軸をX軸に
-  body.scale.set(1, 1, 0.55);    // 側扁(左右に平たく)
+  body.rotation.z = Math.PI / 2;
+  body.scale.set(1, 1, 0.55);
   minnow.add(body);
 
-  // 背中(上半分の色)
   const back = new THREE.Mesh(new THREE.LatheGeometry(profile, 20, 0, Math.PI), backMat);
   back.rotation.z = Math.PI / 2;
   back.scale.set(1.02, 1.02, 0.56);
   minnow.add(back);
 
-  // リップ(潜行板)
   const lip = new THREE.Mesh(
     new THREE.PlaneGeometry(0.028, 0.035),
-    new THREE.MeshPhysicalMaterial({
-      color: 0xcfe8ff, transparent: true, opacity: 0.45,
-      side: THREE.DoubleSide, roughness: 0.1,
-    })
+    new THREE.MeshPhysicalMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.45, side: THREE.DoubleSide, roughness: 0.1 })
   );
   lip.position.set(-L * 0.5, -0.012, 0);
   lip.rotation.set(0, Math.PI / 2, 0);
-  lip.rotateX(-0.9); // 前傾
+  lip.rotateX(-0.9);
   minnow.add(lip);
 
-  // 目
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
   const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffcc33 });
   for (const s of [1, -1]) {
@@ -288,7 +422,6 @@ scene.add(lure);
     minnow.add(e);
   }
 
-  // 尾びれ
   const tail = new THREE.Mesh(
     new THREE.ConeGeometry(0.016, 0.03, 4),
     new THREE.MeshStandardMaterial({ color: 0x9fb8c8, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
@@ -298,7 +431,6 @@ scene.add(lure);
   tail.scale.z = 0.15;
   minnow.add(tail);
 
-  // フック(簡略表現: リング)
   const hookMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9, roughness: 0.3 });
   for (const hx of [-L * 0.12, L * 0.38]) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.007, 0.0012, 6, 14), hookMat);
@@ -307,135 +439,775 @@ scene.add(lure);
   }
 }
 
-// ---------------------------------------------------------------- ライン(糸)と軌跡
-const lineGeo = new THREE.BufferGeometry();
-const lineObj = new THREE.Line(lineGeo,
-  new THREE.LineBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.55 }));
-scene.add(lineObj);
+// ================================================================ 魚(シーバス)
+function buildFish(size) {
+  const g = new THREE.Group();
+  const L = size;
+  const silverMat = new THREE.MeshStandardMaterial({ color: 0xb8c8d4, metalness: 0.6, roughness: 0.35 });
+  const backMat   = new THREE.MeshStandardMaterial({ color: 0x2a3d4a, metalness: 0.4, roughness: 0.5 });
+  const finMat    = new THREE.MeshStandardMaterial({ color: 0x71828f, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
 
-const TRAIL_MAX = 500;
+  const profile = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    profile.push(new THREE.Vector2(Math.sin(t * Math.PI) ** 0.9 * 0.125 * L + 0.002, (t - 0.45) * L));
+  }
+  const body = new THREE.Mesh(new THREE.LatheGeometry(profile, 18), silverMat);
+  body.rotation.z = Math.PI / 2;
+  body.scale.set(1, 1, 0.45);
+  g.add(body);
+
+  const back = new THREE.Mesh(new THREE.LatheGeometry(profile, 18, 0, Math.PI), backMat);
+  back.rotation.z = Math.PI / 2;
+  back.scale.set(1.02, 1.02, 0.46);
+  g.add(back);
+
+  // 尾びれ(ピボットで振る)
+  const tailPivot = new THREE.Group();
+  tailPivot.position.set(L * 0.5, 0, 0);
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(L * 0.16, L * 0.28, 4), finMat);
+  tail.position.set(L * 0.12, 0, 0);
+  tail.rotation.z = Math.PI / 2;
+  tail.scale.z = 0.12;
+  tailPivot.add(tail);
+  g.add(tailPivot);
+
+  // 背びれ
+  const dorsal = new THREE.Mesh(new THREE.ConeGeometry(L * 0.12, L * 0.16, 4), finMat);
+  dorsal.position.set(-L * 0.02, L * 0.14, 0);
+  dorsal.scale.z = 0.12;
+  g.add(dorsal);
+
+  // 目
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
+  for (const s of [1, -1]) {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(L * 0.022, 8, 8), eyeMat);
+    e.position.set(-L * 0.36, L * 0.03, s * L * 0.055);
+    g.add(e);
+  }
+
+  g.userData.tailPivot = tailPivot;
+  return g;
+}
+
+// 「!!」ビックリマークのスプライト(アタリ演出)
+function makeAlertSprite() {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 128;
+  const c = cv.getContext('2d');
+  c.font = 'bold 96px sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 10;
+  c.fillStyle = '#ffe14a';
+  c.fillText('!!', 64, 68);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthTest: false }));
+  sp.scale.set(0.7, 0.7, 1);
+  sp.visible = false;
+  scene.add(sp);
+  return sp;
+}
+const alertSprite = makeAlertSprite();
+
+const fishes = [];
+function spawnFish(fish, far = false) {
+  // サイズ分布: 小型ほど多く、ランカーは稀
+  const size = 0.3 + 0.6 * Math.pow(Math.random(), 1.8);
+  if (fish.grp) scene.remove(fish.grp);
+  fish.grp = buildFish(size);
+  fish.size = size;
+  fish.st = 'cruise';
+  fish.cd = far ? 4 : 0;              // 再アタック抑制クールダウン [s]
+  fish.chaseT = 0;
+  fish.stopBonus = 0;
+  fish.yaw = Math.random() * Math.PI * 2;
+  fish.phase = Math.random() * 10;
+  fish.grp.position.set(
+    6 + Math.random() * 28,
+    -(0.5 + Math.random() * 3),
+    (Math.random() - 0.5) * 16
+  );
+  fish.wp = fish.grp.position.clone();
+  scene.add(fish.grp);
+}
+for (let i = 0; i < FISH_N; i++) {
+  const f = {};
+  spawnFish(f);
+  fishes.push(f);
+}
+
+// ================================================================ ライン(糸)と軌跡
+const lineGeo = new THREE.BufferGeometry();
+scene.add(new THREE.Line(lineGeo,
+  new THREE.LineBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.55 })));
+
+const TRAIL_MAX = 400;
 const trailPts = [];
 const trailGeo = new THREE.BufferGeometry();
 const trailObj = new THREE.Line(trailGeo,
   new THREE.LineBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.4 }));
 scene.add(trailObj);
 
-// ---------------------------------------------------------------- シミュレーション状態
-const state = {
-  pos: new THREE.Vector3(CAST_DIST, -0.02, 0),
-  vx: 0,               // 水平速度(-X方向が正のリトリーブ)
-  vy: 0,
-  retrieving: true,
-  twitch: 0,           // トゥイッチの残りエネルギー
-  time: 0,
-};
-
-const ui = {
-  speed:  document.getElementById('speed'),
-  range:  document.getElementById('range'),
-  wobble: document.getElementById('wobble'),
-  type:   document.getElementById('type'),
-};
-
-function cast() {
-  state.pos.set(CAST_DIST, -0.02, 0);
-  state.vx = 0; state.vy = 0; state.twitch = 0;
-  trailPts.length = 0;
+// ================================================================ スプラッシュ演出
+const splashes = [];
+function splashAt(pos, scale = 1) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.1, 0.16, 24),
+    new THREE.MeshBasicMaterial({ color: 0xdff2ff, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(pos.x, 0.02, pos.z);
+  scene.add(ring);
+  splashes.push({ mesh: ring, t: 0, scale });
+}
+function updateSplashes(dt) {
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    const s = splashes[i];
+    s.t += dt;
+    const k = 1 + s.t * 6 * s.scale;
+    s.mesh.scale.set(k, k, k);
+    s.mesh.material.opacity = Math.max(0, 0.9 - s.t * 1.6);
+    if (s.t > 0.6) {
+      scene.remove(s.mesh);
+      splashes.splice(i, 1);
+    }
+  }
 }
 
-document.getElementById('btnCast').addEventListener('click', cast);
-document.getElementById('btnTwitch').addEventListener('click', () => { state.twitch = 1; });
-const btnRet = document.getElementById('btnRetrieve');
-btnRet.addEventListener('click', () => {
-  state.retrieving = !state.retrieving;
-  btnRet.textContent = state.retrieving ? '■ 停止' : '▶ リトリーブ';
-  btnRet.classList.toggle('stopped', !state.retrieving);
+// ================================================================ サウンド(WebAudio 簡易シンセ)
+let AC = null;
+function initAudio() {
+  if (!AC) {
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* 無音で続行 */ }
+  }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+document.addEventListener('pointerdown', initAudio, { once: true });
+
+function beep(freq, dur = 0.12, type = 'square', gain = 0.15, delay = 0) {
+  if (!AC) return;
+  const t0 = AC.currentTime + delay;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(gain, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  o.connect(g).connect(AC.destination);
+  o.start(t0); o.stop(t0 + dur);
+}
+function noiseBurst(dur = 0.25, gain = 0.2) {
+  if (!AC) return;
+  const n = Math.floor(AC.sampleRate * dur);
+  const buf = AC.createBuffer(1, n, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const src = AC.createBufferSource(), g = AC.createGain();
+  src.buffer = buf;
+  g.gain.value = gain;
+  src.connect(g).connect(AC.destination);
+  src.start();
+}
+const snd = {
+  splash: () => noiseBurst(0.3, 0.25),
+  bite:   () => { beep(880, 0.09, 'square', 0.2); beep(880, 0.09, 'square', 0.2, 0.13); },
+  hit:    () => { beep(660, 0.1, 'sawtooth', 0.18); beep(990, 0.14, 'sawtooth', 0.18, 0.1); },
+  catch:  () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.16, 'triangle', 0.2, i * 0.12)); },
+  lost:   () => beep(180, 0.4, 'sawtooth', 0.2),
+  reelIn: () => beep(1400, 0.03, 'sine', 0.04),
+};
+const vib = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) { /* 非対応環境 */ } };
+
+// ================================================================ UI要素
+const el = (id) => document.getElementById(id);
+const ui = {
+  speed: el('speed'), range: el('range'), wobble: el('wobble'), type: el('type'),
+  msg: el('msg'), hint: el('hint'),
+  hDist: el('hDist'), hDepth: el('hDepth'), hCatch: el('hCatch'),
+  tensionWrap: el('tensionWrap'), tensionFill: el('tensionFill'),
+  powerWrap: el('powerWrap'), powerFill: el('powerFill'), powerText: el('powerText'),
+  barReady: el('barReady'), barPlay: el('barPlay'),
+  btnCast: el('btnCast'), btnReel: el('btnReel'), btnTwitch: el('btnTwitch'),
+  strike: el('strike'), result: el('result'),
+};
+
+let msgTimer = 0;
+function msg(text, dur = 1600) {
+  ui.msg.textContent = text;
+  ui.msg.classList.add('show');
+  msgTimer = dur / 1000;
+}
+function hint(text) { ui.hint.textContent = text; }
+
+// ================================================================ ゲーム状態
+// ready → charge → flying → retrieve → bite → fight → result → ready
+const G = {
+  state: 'ready',
+  time: 0,
+  power: 0, powerDir: 1,
+  castDist: 0,
+  flightT: 0, flightDur: 1, flightPeak: 3,
+  reeling: false,
+  twitch: 0,
+  pos: new THREE.Vector3(0.05, 1.15, 0), // ルアー位置
+  vx: 0, vy: 0,
+  bite: null,   // { fish, t, window }
+  fight: null,  // { fish, dist, tension, stamina, staminaMax, run, modeT, slackT, pull }
+  catches: 0,
+  best: +(localStorage.getItem('fishing.best') || 0),
+  camShake: 0,
+};
+
+function setBars() {
+  ui.barReady.classList.toggle('show', G.state === 'ready' || G.state === 'charge');
+  ui.barPlay.classList.toggle('show', G.state === 'retrieve' || G.state === 'fight' || G.state === 'bite');
+  ui.btnTwitch.classList.toggle('disabled', G.state !== 'retrieve');
+  ui.tensionWrap.classList.toggle('show', G.state === 'fight');
+}
+
+function toReady(text) {
+  G.state = 'ready';
+  G.pos.set(0.05, 1.15, 0);
+  G.vx = G.vy = G.twitch = 0;
+  G.reeling = false;
+  ui.btnReel.classList.remove('on');
+  trailPts.length = 0;
+  trailGeo.setFromPoints([new THREE.Vector3()]);
+  trailObj.visible = false;
+  controls.enabled = false;
+  alertSprite.visible = false;
+  setBars();
+  hint(text || 'ボタンを長押しでパワーをため、離してキャスト!');
+}
+
+function toRetrieve() {
+  G.state = 'retrieve';
+  controls.enabled = true;
+  trailObj.visible = true;
+  // 水中カメラへ切り替え(ルアーの少し後方・水中から)
+  camera.position.set(G.pos.x + 3.2, Math.max(BOTTOM_Y + 0.6, G.pos.y - 0.5), 2.4);
+  controls.target.copy(G.pos);
+  setBars();
+  hint('リール長押しで巻く / トゥイッチで誘う\nドラッグ: 視点回転 ・ ピンチ: ズーム');
+}
+
+// ---------------------------------------------------------------- キャスト
+function startCharge() {
+  if (G.state !== 'ready') return;
+  G.state = 'charge';
+  G.power = 0; G.powerDir = 1;
+  ui.powerWrap.classList.add('show');
+  setBars();
+  hint('離した瞬間のパワーで飛距離が決まる!');
+}
+function releaseCast() {
+  if (G.state !== 'charge') return;
+  ui.powerWrap.classList.remove('show');
+  G.castDist = 8 + G.power * 0.26; // 8〜34m
+  G.state = 'flying';
+  G.flightT = 0;
+  G.flightDur = 0.9 + G.castDist * 0.035;
+  G.flightPeak = 1.5 + G.power * 0.035;
+  controls.enabled = false;
+  setBars();
+  hint('');
+  msg(`キャスト! ${G.castDist.toFixed(0)} m`, 1200);
+}
+
+ui.btnCast.addEventListener('pointerdown', (e) => { e.preventDefault(); startCharge(); });
+window.addEventListener('pointerup', releaseCast);
+window.addEventListener('pointercancel', releaseCast);
+
+// ---------------------------------------------------------------- リール・トゥイッチ
+function setReel(on) {
+  if (on && !(G.state === 'retrieve' || G.state === 'fight')) return;
+  G.reeling = on;
+  ui.btnReel.classList.toggle('on', on);
+}
+ui.btnReel.addEventListener('pointerdown', (e) => { e.preventDefault(); setReel(true); });
+window.addEventListener('pointerup', () => setReel(false));
+window.addEventListener('pointercancel', () => setReel(false));
+
+ui.btnTwitch.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (G.state === 'retrieve') G.twitch = 1;
 });
 
-// 設定パネルの折りたたみ(スマホでは画面を広く使うため初期状態で閉じる)
-const panel = document.getElementById('panel');
-const btnToggle = document.getElementById('btnToggle');
-function setCollapsed(c) {
-  panel.classList.toggle('collapsed', c);
-  btnToggle.textContent = c ? '▴' : '▾';
+// キーボード(PC用): Space=リール, X=トゥイッチ
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (e.code === 'Space') {
+    if (G.state === 'ready') startCharge();
+    else if (G.state === 'bite') hookAttempt();
+    else setReel(true);
+    e.preventDefault();
+  }
+  if (e.code === 'KeyX' && G.state === 'retrieve') G.twitch = 1;
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    if (G.state === 'charge') releaseCast();
+    else setReel(false);
+  }
+});
+
+// ---------------------------------------------------------------- アワセ
+ui.strike.addEventListener('pointerdown', (e) => { e.preventDefault(); hookAttempt(); });
+
+function enterBite(fish) {
+  G.state = 'bite';
+  G.bite = { fish, t: 0, window: 0.85 };
+  fish.st = 'biting';
+  ui.strike.classList.add('show');
+  alertSprite.visible = true;
+  snd.bite();
+  vib([90, 60, 90]);
+  setBars();
 }
-btnToggle.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
-if (window.matchMedia('(max-width: 640px)').matches) setCollapsed(true);
+function hookAttempt() {
+  if (G.state !== 'bite') return;
+  const b = G.bite;
+  ui.strike.classList.remove('show');
+  alertSprite.visible = false;
+  if (Math.random() < 0.92) {
+    enterFight(b.fish);
+  } else {
+    msg('すっぽ抜けた…!', 1600);
+    snd.lost();
+    fleeFish(b.fish);
+    G.bite = null;
+    G.state = 'retrieve';
+    setBars();
+  }
+}
+function missBite() {
+  ui.strike.classList.remove('show');
+  alertSprite.visible = false;
+  msg('アワセが遅い!\n逃げられた…', 1800);
+  snd.lost();
+  fleeFish(G.bite.fish);
+  G.bite = null;
+  G.state = 'retrieve';
+  setBars();
+}
+function fleeFish(fish) {
+  fish.st = 'flee';
+  fish.cd = 10;
+  fish.wp = new THREE.Vector3(fish.grp.position.x + 12, -(1 + Math.random() * 2.5), (Math.random() < 0.5 ? -1 : 1) * 14);
+}
 
-ui.speed.addEventListener('input', () =>
-  document.getElementById('vSpeed').textContent = (+ui.speed.value).toFixed(1) + ' m/s');
-ui.range.addEventListener('input', () =>
-  document.getElementById('vRange').textContent = (+ui.range.value).toFixed(1) + ' m');
-ui.wobble.addEventListener('input', () =>
-  document.getElementById('vWobble').textContent = ui.wobble.value + '%');
+// ---------------------------------------------------------------- ファイト
+function enterFight(fish) {
+  const size = fish.size;
+  G.state = 'fight';
+  G.bite = null;
+  fish.st = 'hooked';
+  G.fight = {
+    fish,
+    dist: Math.max(3, G.pos.x),
+    tension: 30,
+    staminaMax: 4 + size * 14,
+    stamina: 4 + size * 14,
+    run: true, modeT: 1.4 + Math.random(),
+    slackT: 0,
+    pull: 0.9 + size * 1.6,
+    zPhase: Math.random() * 10,
+  };
+  msg('HIT!!', 1200);
+  snd.hit();
+  vib([60, 40, 120]);
+  splashAt(fish.grp.position, 1.5);
+  setBars();
+  hint('魚が走ったら巻くのを我慢!\nテンションが赤でラインブレイク');
+}
 
-// ---------------------------------------------------------------- 物理更新
-function updatePhysics(dt) {
-  const t = state.time;
+function endFightEscape(text) {
+  const f = G.fight;
+  fleeFish(f.fish);
+  G.pos.copy(f.fish.grp.position); // ルアーはその場に残る
+  G.pos.y = Math.min(-0.05, G.pos.y);
+  G.fight = null;
+  msg(text, 2000);
+  snd.lost();
+  vib(200);
+  toRetrieve();
+}
+function endFightBreak() {
+  const f = G.fight;
+  fleeFish(f.fish);
+  G.fight = null;
+  msg('ラインブレイク!!\nルアーをロストした…', 2200);
+  snd.lost();
+  vib([80, 60, 300]);
+  toReady('新しいルアーを結んだ。もう一度キャスト!');
+}
+function endFightLanded() {
+  const f = G.fight;
+  G.catches++;
+  const lenCm = Math.round(f.fish.size * 100);
+  const weight = (Math.pow(f.fish.size, 3) * 10).toFixed(1);
+  const species = lenCm < 40 ? 'セイゴ' : lenCm < 60 ? 'フッコ' : lenCm < 80 ? 'スズキ' : 'ランカーシーバス';
+  const isBest = lenCm > G.best;
+  if (isBest) {
+    G.best = lenCm;
+    localStorage.setItem('fishing.best', String(lenCm));
+  }
+  el('rSpecies').textContent = species;
+  el('rLen').textContent = lenCm + ' cm';
+  el('rWeight').textContent = weight + ' kg';
+  el('rBest').textContent = G.best + ' cm';
+  el('rBadge').classList.toggle('show', isBest);
+  el('rMeta').textContent = `本日の釣果: ${G.catches} 匹`;
+  ui.hCatch.textContent = G.catches + ' 匹';
+  // 魚を水面近くへ
+  f.fish.grp.position.set(1.5, -0.15, 0);
+  splashAt(f.fish.grp.position, 2);
+  snd.catch();
+  vib([50, 50, 50, 50, 200]);
+  ui.result.classList.add('show');
+  G.state = 'result';
+  setBars();
+}
+
+el('btnNext').addEventListener('click', () => {
+  ui.result.classList.remove('show');
+  if (G.fight) {
+    spawnFish(G.fight.fish, true); // 釣った魚は新しい個体に入れ替え
+    G.fight = null;
+  }
+  toReady();
+});
+
+// ---------------------------------------------------------------- 設定パネル
+el('btnGear').addEventListener('click', () => el('settings').classList.toggle('show'));
+ui.speed.addEventListener('input', () => el('vSpeed').textContent = (+ui.speed.value).toFixed(1) + ' m/s');
+ui.range.addEventListener('input', () => el('vRange').textContent = (+ui.range.value).toFixed(1) + ' m');
+ui.wobble.addEventListener('input', () => el('vWobble').textContent = ui.wobble.value + '%');
+
+// ================================================================ 更新: リトリーブ(水中の物理)
+let prevSpeed = 0;
+function updateRetrieve(dt) {
   const setSpeed  = +ui.speed.value;
   const diveRange = +ui.range.value;
-  const intensity = +ui.wobble.value / 100;
 
-  // --- 水平速度: リトリーブ中は設定速度へ、停止中は減速して滑走
-  const targetVx = state.retrieving ? setSpeed : 0;
-  state.vx += (targetVx - state.vx) * Math.min(1, dt * 3.0);
+  const targetVx = G.reeling ? setSpeed : 0;
+  G.vx += (targetVx - G.vx) * Math.min(1, dt * 3.0);
 
-  // --- トゥイッチ: 瞬間的な加速(ダート)
-  if (state.twitch > 0) {
-    state.vx += state.twitch * 9 * dt;
-    state.twitch = Math.max(0, state.twitch - dt * 3);
+  if (G.twitch > 0) {
+    G.vx += G.twitch * 9 * dt;
+    G.twitch = Math.max(0, G.twitch - dt * 3);
   }
 
-  const speed = state.vx; // 実効スピード(ウォブリング・潜行の駆動源)
-
-  // --- 潜行: リップの水受けで速度に応じた深度へ向かう
+  const speed = G.vx;
   const still = speed < 0.08;
   if (!still) {
     const targetY = -diveRange * Math.min(1, speed / 1.5);
-    state.vy += ((targetY - state.pos.y) * 1.2 - state.vy) * Math.min(1, dt * 4);
+    G.vy += ((targetY - G.pos.y) * 1.2 - G.vy) * Math.min(1, dt * 4);
   } else {
-    // 停止中: ルアータイプによる浮力挙動
     const buoy = { floating: 0.22, suspend: 0.0, sinking: -0.13 }[ui.type.value];
-    state.vy += (buoy - state.vy) * Math.min(1, dt * 2);
+    G.vy += (buoy - G.vy) * Math.min(1, dt * 2);
   }
-  state.vy = THREE.MathUtils.clamp(state.vy, -0.8, 0.5);
+  G.vy = THREE.MathUtils.clamp(G.vy, -0.8, 0.5);
 
-  // --- 位置更新
-  state.pos.x -= state.vx * dt;
-  state.pos.y += state.vy * dt;
-  state.pos.y = THREE.MathUtils.clamp(state.pos.y, BOTTOM_Y + 0.1, -0.02);
+  G.pos.x -= G.vx * dt;
+  G.pos.y += G.vy * dt;
+  G.pos.y = THREE.MathUtils.clamp(G.pos.y, BOTTOM_Y + 0.1, -0.02);
 
-  // 巻き取り完了で自動再キャスト
-  if (state.pos.x < 1.2) cast();
+  // 巻き取り完了 → 回収
+  if (G.pos.x < 1.0) {
+    toReady('ルアーを回収した。次のキャストへ!');
+    return;
+  }
 
-  // --- ウォブリング(ロール)+ ウィグリング(ヨー)
+  // ウォブリング + ウィグリング
+  const intensity = +ui.wobble.value / 100;
   const speedFac = Math.min(1, speed / 1.2);
-  const freq = 2.0 + speed * 2.8;                      // 速いほど高ピッチ
-  const phase = 2 * Math.PI * freq * t;
-  const roll  = intensity * speedFac * 0.55 * Math.sin(phase);
-  const yaw   = intensity * speedFac * 0.30 * Math.sin(phase + Math.PI / 2)
-              + state.twitch * 0.9 * Math.sin(t * 31); // トゥイッチでダート
-  // 体の左右スライド(S字の泳ぎ)
+  const freq = 2.0 + speed * 2.8;
+  const phase = 2 * Math.PI * freq * G.time;
+  const roll = intensity * speedFac * 0.55 * Math.sin(phase);
+  const yaw  = intensity * speedFac * 0.30 * Math.sin(phase + Math.PI / 2)
+             + G.twitch * 0.9 * Math.sin(G.time * 31);
   const sway = intensity * speedFac * 0.05 * Math.sin(phase + Math.PI / 2);
+  const divePitch = (!still ? 0.25 * Math.min(1, diveRange / 2) : 0) - G.vy * 0.9;
 
-  // --- ピッチ: 潜行中は頭下がり、浮上中は頭上がり
-  const divePitch = (!still ? 0.25 * Math.min(1, diveRange / 2) : 0) - state.vy * 0.9;
-
-  lure.position.set(state.pos.x, state.pos.y, state.pos.z + sway);
+  lure.position.set(G.pos.x, G.pos.y, G.pos.z + sway);
   minnow.rotation.set(roll, yaw, THREE.MathUtils.clamp(divePitch, -0.7, 0.7));
+
+  updateFishAI(dt, speed);
+  prevSpeed = speed;
 }
 
-// ---------------------------------------------------------------- 描画補助
+// ================================================================ 更新: 魚のAI
+function updateFishAI(dt, lureSpeed) {
+  const intensity = +ui.wobble.value / 100;
+  const justStopped = prevSpeed >= 0.3 && lureSpeed < 0.3; // ストップ&ゴーの「止め」
+
+  for (const f of fishes) {
+    if (f.st === 'hooked' || f.st === 'biting') continue;
+    f.cd = Math.max(0, f.cd - dt);
+    const p = f.grp.position;
+    const d = p.distanceTo(G.pos);
+
+    if (f.st === 'cruise' && f.cd <= 0 && lureSpeed > 0.35 && d < 8) {
+      // 興味判定: 速度スイートスポット × 深度の近さ × 距離 × アクション
+      const speedScore = Math.exp(-Math.pow((lureSpeed - 1.3) / 0.8, 2));
+      const depthScore = Math.exp(-Math.pow((p.y - G.pos.y) / 1.2, 2));
+      const attract = 0.6 * speedScore * depthScore * (1 - d / 8) * (0.4 + 0.6 * intensity)
+                    + G.twitch * 0.8;
+      if (Math.random() < attract * dt * 2.2) {
+        f.st = 'chase';
+        f.chaseT = 0;
+        f.stopBonus = 0;
+      }
+    }
+
+    if (f.st === 'chase') {
+      f.chaseT += dt;
+      if (justStopped) f.stopBonus = 1.1; // 止めた瞬間はバイト率急上昇
+      f.stopBonus = Math.max(0, f.stopBonus - dt);
+
+      // ルアーの少し後ろに付く
+      f.wp = G.pos.clone().add(new THREE.Vector3(0.35 + f.size * 0.7, -0.05, Math.sin(G.time * 2 + f.phase) * 0.15));
+
+      // バイト判定
+      const biteRate = 0.16 + G.twitch * 1.5 + f.stopBonus * 0.9;
+      if (d < 1.2 && Math.random() < biteRate * dt) {
+        f.st = 'lunge';
+      }
+      // 見切り
+      if (f.chaseT > 6 || d > 9 || (lureSpeed < 0.1 && f.stopBonus <= 0 && f.chaseT > 2)) {
+        f.st = 'cruise';
+        f.cd = 8;
+        f.wp = randomWaypoint();
+      }
+    }
+
+    if (f.st === 'lunge') {
+      f.wp = G.pos.clone();
+      if (d < 0.15) {
+        enterBite(f);
+        continue;
+      }
+      if (d > 3) { f.st = 'cruise'; f.cd = 6; }
+    }
+
+    moveFish(f, dt);
+  }
+}
+
+function randomWaypoint() {
+  return new THREE.Vector3(4 + Math.random() * 30, -(0.5 + Math.random() * 3), (Math.random() - 0.5) * 18);
+}
+
+function moveFish(f, dt) {
+  const p = f.grp.position;
+  const speedMap = { cruise: 0.45, chase: 2.6 + f.size, lunge: 3.6 + f.size, flee: 3.5, biting: 0, hooked: 0 };
+  const sp = speedMap[f.st] ?? 0.45;
+  const to = f.wp.clone().sub(p);
+  const dist = to.length();
+
+  if (f.st === 'cruise' && dist < 0.5) f.wp = randomWaypoint();
+  if (f.st === 'flee' && dist < 1.5) { f.st = 'cruise'; f.wp = randomWaypoint(); }
+
+  if (dist > 0.01) {
+    to.normalize();
+    p.addScaledVector(to, Math.min(sp * dt, dist));
+    p.y = THREE.MathUtils.clamp(p.y, BOTTOM_Y + 0.3, -0.15);
+    // 向き(ノーズは -X 向きが基準)
+    const targetYaw = Math.atan2(to.z, -to.x);
+    let dy = targetYaw - f.yaw;
+    while (dy > Math.PI) dy -= 2 * Math.PI;
+    while (dy < -Math.PI) dy += 2 * Math.PI;
+    f.yaw += dy * Math.min(1, dt * 5);
+    f.grp.rotation.y = f.yaw;
+  }
+
+  // 尾びれの振り
+  const wagFreq = 3 + sp * 3;
+  f.grp.userData.tailPivot.rotation.y = Math.sin(G.time * wagFreq + f.phase) * 0.45;
+  f.grp.rotation.x = Math.sin(G.time * 1.4 + f.phase) * 0.04;
+}
+
+// ================================================================ 更新: 各ステート
+function updateCharge(dt) {
+  G.power += G.powerDir * 130 * dt;
+  if (G.power >= 100) { G.power = 100; G.powerDir = -1; }
+  if (G.power <= 0)   { G.power = 0;   G.powerDir = 1; }
+  ui.powerFill.style.width = G.power.toFixed(0) + '%';
+  ui.powerText.textContent = `パワー ${G.power.toFixed(0)}% (約 ${(8 + G.power * 0.26).toFixed(0)} m)`;
+  // ロッドを構える
+  rodMesh.rotation.z = -0.5 - G.power * 0.006;
+  lure.position.set(0.05, 1.15, 0);
+  minnow.rotation.set(0, 0, 0.5);
+}
+
+function updateFlying(dt) {
+  G.flightT += dt;
+  const t = Math.min(1, G.flightT / G.flightDur);
+  const x = 0.2 + (G.castDist - 0.2) * t;
+  const y = 1.5 * (1 - t) + G.flightPeak * Math.sin(Math.PI * t);
+  G.pos.set(x, y, 0);
+  lure.position.copy(G.pos);
+  minnow.rotation.set(G.time * 6, 0, -0.35); // 回転しながら飛ぶ
+  rodMesh.rotation.z += (-0.5 - rodMesh.rotation.z) * Math.min(1, dt * 5);
+
+  if (t >= 1) {
+    G.pos.y = -0.05;
+    G.vx = 0; G.vy = 0;
+    splashAt(G.pos, 1);
+    snd.splash();
+    vib(30);
+    toRetrieve();
+  }
+}
+
+function updateBite(dt) {
+  const b = G.bite;
+  b.t += dt;
+  // ルアーと魚を小刻みに揺らす
+  const shake = Math.sin(G.time * 60) * 0.05;
+  lure.position.set(G.pos.x + shake, G.pos.y, G.pos.z);
+  b.fish.grp.position.copy(lure.position).add(new THREE.Vector3(0.3 + b.fish.size * 0.4, 0, 0));
+  b.fish.grp.rotation.y = b.fish.yaw = Math.PI * 0 + Math.sin(G.time * 40) * 0.1;
+  alertSprite.position.copy(b.fish.grp.position).add(new THREE.Vector3(0, 0.6 + b.fish.size * 0.3, 0));
+  if (b.t > b.window) missBite();
+}
+
+function updateFight(dt) {
+  const f = G.fight;
+  const fish = f.fish;
+
+  // 走る / 休む の切り替え
+  f.modeT -= dt;
+  if (f.modeT <= 0) {
+    const runProb = THREE.MathUtils.clamp(f.stamina / f.staminaMax, 0, 1) * 0.85 + 0.05;
+    f.run = Math.random() < runProb;
+    f.modeT = f.run ? 1.2 + Math.random() * 1.8 : 1.5 + Math.random() * 2.0;
+    if (f.run) {
+      splashAt(fish.grp.position, 0.8);
+      vib(40);
+    }
+  }
+
+  // スタミナと距離
+  if (f.run) {
+    f.stamina -= dt * (1.1 + (G.reeling ? 0.5 : 0));
+    f.dist += (G.reeling ? Math.max(0, f.pull - 1.3) : f.pull * 0.85) * dt;
+  } else {
+    f.stamina -= dt * (G.reeling ? 1.0 : 0.15);
+    if (G.reeling) {
+      f.dist -= 1.8 * dt;
+      if (Math.floor(G.time * 8) !== Math.floor((G.time - dt) * 8)) snd.reelIn();
+    }
+  }
+  f.stamina = Math.max(0, f.stamina);
+  if (f.stamina <= 0) f.run = false;
+
+  // テンション
+  const sizeF = fish.size;
+  const target = G.reeling
+    ? (f.run ? 70 + sizeF * 55 : 42)
+    : (f.run ? 30 : 5);
+  f.tension += (target - f.tension) * Math.min(1, dt * 1.6);
+
+  if (f.tension >= 100) { endFightBreak(); return; }
+  if (f.tension < 10) {
+    f.slackT += dt;
+    if (f.slackT > 3) { endFightEscape('ラインがたるんで\nフックが外れた…'); return; }
+  } else f.slackT = 0;
+
+  f.dist = THREE.MathUtils.clamp(f.dist, 0.8, MAX_LINE);
+  if (f.dist >= MAX_LINE) { endFightBreak(); return; }
+  if (f.dist <= 1.2) { endFightLanded(); return; }
+
+  // 魚の位置(ラインの先で暴れる)
+  const tired = 1 - f.stamina / f.staminaMax;
+  const depth = 0.4 + (1 - tired) * 1.8 * Math.abs(Math.sin(G.time * 0.5 + f.zPhase));
+  const z = Math.sin(G.time * 0.4 + f.zPhase) * f.dist * 0.3;
+  const targetPos = new THREE.Vector3(f.dist, -depth, z);
+  if (f.run) {
+    targetPos.z += Math.sin(G.time * 7) * 0.5;
+    targetPos.y -= 0.3;
+  }
+  fish.grp.position.lerp(targetPos, Math.min(1, dt * (f.run ? 3.5 : 1.6)));
+
+  // 魚の向きと尾振り
+  const away = f.run ? 1 : -1;
+  const targetYaw = Math.atan2(fish.grp.position.z * 0.05, -away);
+  fish.grp.rotation.y = fish.yaw += (targetYaw - fish.yaw) * Math.min(1, dt * 3);
+  fish.grp.userData.tailPivot.rotation.y = Math.sin(G.time * (f.run ? 18 : 7)) * 0.5;
+  fish.grp.rotation.z = Math.sin(G.time * (f.run ? 9 : 3)) * 0.25;
+
+  // ルアーは魚の口元に追従
+  const nose = new THREE.Vector3(-fish.size * 0.48, 0, 0).applyEuler(fish.grp.rotation).add(fish.grp.position);
+  G.pos.copy(nose);
+  lure.position.copy(nose);
+  minnow.rotation.set(Math.sin(G.time * 20) * 0.3, 0, 0);
+
+  // ロッドの曲げとカメラ揺れ
+  rodMesh.rotation.z = -0.5 - f.tension * 0.005;
+  G.camShake = f.run ? 0.02 : 0.008;
+
+  // UI
+  ui.tensionFill.style.width = f.tension.toFixed(0) + '%';
+  ui.tensionFill.classList.toggle('warn', f.tension > 55 && f.tension <= 78);
+  ui.tensionFill.classList.toggle('danger', f.tension > 78);
+  ui.tensionWrap.classList.toggle('danger', f.tension > 78);
+  hint(f.run ? '🏃 走ってる! 巻くのを我慢!' : '✅ 今だ! 巻け巻け!');
+}
+
+// ================================================================ カメラ
+const camTmp = new THREE.Vector3();
+function updateCamera(dt) {
+  switch (G.state) {
+    case 'ready':
+    case 'charge':
+    case 'result':
+      camTmp.set(-4.2, 3.0, 5.2);
+      camera.position.lerp(camTmp, Math.min(1, dt * 2));
+      controls.target.lerp(new THREE.Vector3(10, -0.8, 0), Math.min(1, dt * 2));
+      camera.lookAt(controls.target);
+      break;
+    case 'flying':
+      camTmp.set(G.pos.x - 5, G.pos.y + 1.6, 3.2);
+      camera.position.lerp(camTmp, Math.min(1, dt * 3));
+      camera.lookAt(G.pos);
+      controls.target.copy(G.pos);
+      break;
+    case 'retrieve':
+    case 'bite':
+      controls.target.lerp(lure.position, 0.06);
+      controls.update();
+      break;
+    case 'fight': {
+      const fp = G.fight.fish.grp.position;
+      controls.target.lerp(fp, 0.08);
+      controls.update();
+      if (G.camShake > 0) {
+        camera.position.x += (Math.random() - 0.5) * G.camShake;
+        camera.position.y += (Math.random() - 0.5) * G.camShake;
+        G.camShake = 0;
+      }
+      break;
+    }
+  }
+  // 水中/水上で背景・フォグ・水面の見え方を切り替え
+  const under = camera.position.y < 0;
+  scene.fog = under ? FOG_WATER : FOG_AIR;
+  scene.background = under ? BG_WATER : BG_AIR;
+  surface.material.opacity = under ? 0.35 : 0.8;
+}
+
+// ================================================================ 描画補助
 function updateLine() {
   const nose = new THREE.Vector3(-0.055, 0, 0).applyEuler(minnow.rotation).add(lure.position);
   const mid = ROD_TIP.clone().add(nose).multiplyScalar(0.5);
-  mid.y -= 0.15 + nose.distanceTo(ROD_TIP) * 0.012; // ラインスラック(たるみ)
+  const slack = (G.state === 'fight') ? 0.02 : 0.15 + nose.distanceTo(ROD_TIP) * 0.012;
+  mid.y -= slack;
   const curve = new THREE.QuadraticBezierCurve3(ROD_TIP, mid, nose);
   lineGeo.setFromPoints(curve.getPoints(40));
 }
 
 let trailSkip = 0;
 function updateTrail() {
+  if (G.state !== 'retrieve') return;
   if (++trailSkip % 2) return;
   trailPts.push(lure.position.clone());
   if (trailPts.length > TRAIL_MAX) trailPts.shift();
@@ -451,30 +1223,64 @@ function updateSurface(t) {
   p.needsUpdate = true;
 }
 
-function updateReadout() {
-  document.getElementById('rDepth').textContent = (-state.pos.y).toFixed(1) + ' m';
-  document.getElementById('rSpeed').textContent = state.vx.toFixed(1) + ' m/s';
-  document.getElementById('rDist').textContent  = Math.max(0, state.pos.x).toFixed(0) + ' m';
+function updateHUD() {
+  if (G.state === 'fight') {
+    ui.hDist.textContent = G.fight.dist.toFixed(1) + ' m';
+    ui.hDepth.textContent = (-G.fight.fish.grp.position.y).toFixed(1) + ' m';
+  } else if (G.state === 'retrieve' || G.state === 'bite') {
+    ui.hDist.textContent = Math.max(0, G.pos.x).toFixed(1) + ' m';
+    ui.hDepth.textContent = Math.max(0, -G.pos.y).toFixed(1) + ' m';
+  } else {
+    ui.hDist.textContent = '- m';
+    ui.hDepth.textContent = '- m';
+  }
 }
 
-// ---------------------------------------------------------------- メインループ
+// ================================================================ メインループ
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
-  state.time += dt;
+  G.time += dt;
 
-  updatePhysics(dt);
+  switch (G.state) {
+    case 'charge':   updateCharge(dt);   break;
+    case 'flying':   updateFlying(dt);   break;
+    case 'retrieve': updateRetrieve(dt); break;
+    case 'bite':     updateBite(dt);     break;
+    case 'fight':    updateFight(dt);    break;
+    default:
+      lure.position.copy(G.pos);
+      minnow.rotation.set(0, 0, 0.4);
+      rodMesh.rotation.z += (-0.5 - rodMesh.rotation.z) * Math.min(1, dt * 3);
+      break;
+  }
+
+  // ファイト・バイト以外でも他の魚は回遊し続ける
+  if (G.state !== 'retrieve') {
+    for (const f of fishes) {
+      if (f.st === 'hooked' || f.st === 'biting') continue;
+      if (f.st === 'chase' || f.st === 'lunge') { f.st = 'cruise'; f.wp = randomWaypoint(); }
+      moveFish(f, dt);
+    }
+  }
+
+  if (msgTimer > 0) {
+    msgTimer -= dt;
+    if (msgTimer <= 0) ui.msg.classList.remove('show');
+  }
+
   updateLine();
   updateTrail();
-  updateSurface(state.time);
-  updateReadout();
+  updateSurface(G.time);
+  updateSplashes(dt);
+  updateHUD();
+  updateCamera(dt);
 
-  // カメラはルアーを緩やかに追従
-  controls.target.lerp(lure.position, 0.06);
-  controls.update();
   renderer.render(scene, camera);
 }
+
+toReady();
 animate();
 
 window.addEventListener('resize', () => {
