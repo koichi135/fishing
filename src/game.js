@@ -504,6 +504,7 @@ export class Game {
     if (r < 0.28 + 0.4 * stamR) {
       F.mode = 'run'; F.modeT = 1.3 + Math.random() * 2.2;
       F.phiT = (Math.random() < 0.5 ? -1 : 1) * (0.2 + Math.random() * 1.2);
+      F.surge = 1.0;
       vib(40);
     } else if (sp.shake > 0.4 && Math.random() < sp.shake * 0.5) {
       F.mode = 'shake'; F.modeT = 0.9 + Math.random() * 0.5;
@@ -570,12 +571,16 @@ export class Game {
     let spike = 0;
     if (F.mode === 'shake') spike = Math.sin(F.t * 28) * 16 * sp.shake * (this.reelHeld ? 1.3 : 0.7);
     if (F.jump && this.reelHeld) spike += 22 + Math.sin(F.t * 30) * 8;
+    if (F.surge > 0) {
+      F.surge -= dt;
+      spike += (this.reelHeld ? 15 : 5) * Math.sin(Math.PI * (1 - F.surge)) ** 2 * Math.min(F.power, 1.6);
+    }
     const dragMax = DRAG[Store.settings.drag] || 60;
     let shown = F.tension;
     let slip = 0;
     if (shown > dragMax) {
       slip = Math.max(vr, 0.35) * Math.min(1, (shown - dragMax) / 14 + 0.4);
-      shown = dragMax + (shown - dragMax) * 0.3;
+      shown = dragMax + (shown - dragMax) * (this.reelHeld ? 0.5 : 0.3);
       F.lineOut += slip * dt;
     }
     shown += spike;
@@ -1112,6 +1117,20 @@ export class Game {
     this.uw.setScale(h * pr, this.camera.fov);
   }
 
+  /** カメラが水中なら空を隠して水の色で塗る(海底の外側に空が見えるのを防ぐ) */
+  envFor(cam) {
+    const under = cam.position.y < 0;
+    this.uw.group.visible = under;
+    this.sky.group.visible = !under;
+    if (under) {
+      const a = U.uAbsorb.value, d = -cam.position.y * 0.35;
+      this.underBg = this.underBg || new THREE.Color();
+      this.underBg.copy(U.uWaterColor.value).multiplyScalar(1.6);
+      this.underBg.r *= Math.exp(-a.x * d); this.underBg.g *= Math.exp(-a.y * d); this.underBg.b *= Math.exp(-a.z * d);
+      this.scene.background = this.underBg;
+    } else this.scene.background = null;
+  }
+
   render() {
     const r = this.renderer;
     const swap = this.pipActive && this.pipSwap;
@@ -1121,7 +1140,7 @@ export class Game {
     main.updateProjectionMatrix();
     this.post.setCamera(main);
     const under = main.position.y < 0;
-    this.uw.group.visible = under;
+    this.envFor(main);
     const pu = this.post.u;
     pu.uTime.value = this.time;
     pu.uUnder.value = under ? 1 : 0;
@@ -1134,7 +1153,7 @@ export class Game {
       const y = innerHeight - R.yTop - R.h;
       sub.aspect = R.w / R.h;
       sub.updateProjectionMatrix();
-      this.uw.group.visible = sub.position.y < 0;
+      this.envFor(sub);
       r.setScissorTest(true);
       r.setViewport(R.x, y, R.w, R.h);
       r.setScissor(R.x, y, R.w, R.h);

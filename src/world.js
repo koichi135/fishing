@@ -464,19 +464,20 @@ export class World {
     // ガントリークレーン
     const craneMat = enhance(new THREE.MeshStandardMaterial({ color: 0xd84a3a, roughness: 0.6 }), { key: 'crane' });
     const craneW = enhance(new THREE.MeshStandardMaterial({ color: 0xe8e8e2, roughness: 0.6 }), { key: 'craneW' });
+    const redG = [], whiteG = [];
     for (let i = 0; i < 5; i++) {
-      const g = new THREE.Group();
-      g.position.set(-520 + i * 55, 0, -760);
+      const ox = -520 + i * 55, oz = -760;
       for (const lx of [-8, 8]) for (const lz of [-6, 6]) {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(1.4, 34, 1.4), i % 2 ? craneW : craneMat);
-        leg.position.set(lx, 17, lz); g.add(leg);
+        const leg = new THREE.BoxGeometry(1.4, 34, 1.4); leg.translate(ox + lx, 17, oz + lz);
+        (i % 2 ? whiteG : redG).push(leg);
       }
-      const top = new THREE.Mesh(new THREE.BoxGeometry(20, 4, 14), craneW); top.position.y = 36; g.add(top);
-      const boom = new THREE.Mesh(new THREE.BoxGeometry(2, 2.5, 70), craneMat);
-      boom.position.set(0, 38, 20 + (i % 3) * 4); boom.rotation.x = i === 2 ? -0.9 : 0; g.add(boom);
-      this.group.add(g);
-      this.addBlinker(new THREE.Vector3(g.position.x, 41, -760), 0xff2a1a, 2.5, 1.6 + i * 0.3);
+      const top = new THREE.BoxGeometry(20, 4, 14); top.translate(ox, 36, oz); whiteG.push(top);
+      const boom = new THREE.BoxGeometry(2, 2.5, 70);
+      if (i === 2) boom.rotateX(-0.9);
+      boom.translate(ox, 38, oz + 20 + (i % 3) * 4); redG.push(boom);
+      this.addBlinker(new THREE.Vector3(ox, 41, oz), 0xff2a1a, 2.5, 1.6 + i * 0.3);
     }
+    this.group.add(new THREE.Mesh(mergeGeometries(redG), craneMat), new THREE.Mesh(mergeGeometries(whiteG), craneW));
 
     // 山並み
     const mg = new THREE.PlaneGeometry(3600, 260, 180, 1);

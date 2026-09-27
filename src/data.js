@@ -9,7 +9,7 @@ export const PRESETS = {
     sky: { elev: 3.2, azi: 38, turbidity: 7, rayleigh: 2.6, mieC: 0.006, mieG: 0.86 },
     exposure: 0.3, sunColor: 0xffc9a0, sunInt: 2.4, hemiSky: 0xa9bbe0, hemiGround: 0x52443a, hemiInt: 0.9, underBoost: 1.9,
     airFog: 0xd6c1b8, airDensity: 0.0013, clouds: { cover: 0.42, lit: 0xffc3a0, shade: 0x5d6784 },
-    waterDeep: 0x0b2e40, waterShallow: 0x2c6f7e, waterFog: 0x1a5063, waterDensity: 0.075,
+    waterDeep: 0x0b2e40, waterShallow: 0x2c6f7e, waterFog: 0x22627a, waterDensity: 0.072,
     caustic: 0.55, godray: 0.65, lamps: 0.0, night: false, activity: 1.35, envInt: 1.0,
   },
   day: {
@@ -25,7 +25,7 @@ export const PRESETS = {
     sky: { elev: 2.4, azi: -32, turbidity: 9, rayleigh: 3.2, mieC: 0.008, mieG: 0.9 },
     exposure: 0.3, sunColor: 0xff9a5a, sunInt: 2.2, hemiSky: 0x9a8cc0, hemiGround: 0x4a3230, hemiInt: 0.9, underBoost: 2.0,
     airFog: 0xd09a86, airDensity: 0.0014, clouds: { cover: 0.5, lit: 0xff9a6a, shade: 0x4b3f63 },
-    waterDeep: 0x0f2638, waterShallow: 0x3a5e6c, waterFog: 0x183b4c, waterDensity: 0.08,
+    waterDeep: 0x0f2638, waterShallow: 0x3a5e6c, waterFog: 0x245468, waterDensity: 0.075,
     caustic: 0.4, godray: 0.55, lamps: 0.6, night: false, activity: 1.45, envInt: 1.0,
   },
   night: {
@@ -33,7 +33,7 @@ export const PRESETS = {
     sky: { elev: -20, azi: 0, moonElev: 24, moonAzi: -18 },
     exposure: 0.75, sunColor: 0x9db4ff, sunInt: 0.55, hemiSky: 0x2a3a66, hemiGround: 0x101418, hemiInt: 0.6, underBoost: 2.6,
     airFog: 0x121c33, airDensity: 0.0016, clouds: { cover: 0.3, lit: 0x5a6a92, shade: 0x0c1224 },
-    waterDeep: 0x031018, waterShallow: 0x0b2a38, waterFog: 0x061722, waterDensity: 0.1,
+    waterDeep: 0x031018, waterShallow: 0x0b2a38, waterFog: 0x0b2534, waterDensity: 0.09,
     caustic: 0.12, godray: 0.12, lamps: 1.0, night: true, activity: 1.15, envInt: 1.6,
     nightSky: { top: 0x02040c, horizon: 0x16213d, glow: 0x6a4a3a },
   },

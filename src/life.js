@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { enhance, seabedY } from './shared.js';
 import { bodyGeometry } from './fish.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ------------------------------------------------------------------ ベイト(イワシの群れ)
 export class BaitSchool {
@@ -115,38 +116,45 @@ export class BaitSchool {
 }
 
 // ------------------------------------------------------------------ カモメ
+function colored(geo, hex) {
+  const c = new THREE.Color(hex);
+  const n = geo.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  if (geo.index) return geo.toNonIndexed();
+  return geo;
+}
+let gullParts = null;
+function gullGeometry() {
+  if (gullParts) return gullParts;
+  const body = new THREE.SphereGeometry(0.12, 10, 8); body.scale(1, 0.9, 2.6);
+  const head = new THREE.SphereGeometry(0.08, 10, 8); head.translate(0, 0.06, -0.3);
+  const beak = new THREE.ConeGeometry(0.02, 0.09, 6); beak.rotateX(-Math.PI / 2); beak.translate(0, 0.05, -0.41);
+  const tail = new THREE.ConeGeometry(0.07, 0.18, 4); tail.scale(1, 1, 0.25); tail.rotateX(Math.PI / 2); tail.translate(0, 0.02, 0.36);
+  const strip = (g) => { g.deleteAttribute('uv'); return g; };
+  const bodyGeo = mergeGeometries([colored(strip(body), 0xf4f4f0), colored(strip(head), 0xf4f4f0), colored(strip(beak), 0xf0c030), colored(strip(tail), 0xf4f4f0)]);
+  const wing = (s) => {
+    const inner = new THREE.PlaneGeometry(0.42, 0.22); inner.rotateX(-Math.PI / 2); inner.translate(s * 0.21, 0, 0);
+    const outer = new THREE.PlaneGeometry(0.4, 0.16); outer.rotateX(-Math.PI / 2); outer.translate(s * 0.2, 0, 0.02);
+    const tip = new THREE.PlaneGeometry(0.14, 0.12); tip.rotateX(-Math.PI / 2); tip.translate(s * 0.36, 0.001, 0.03);
+    return { inner: colored(strip(inner), 0x9aa2aa), outer: mergeGeometries([colored(strip(outer), 0x9aa2aa), colored(strip(tip), 0x1a1a1a)]) };
+  };
+  gullParts = { body: bodyGeo, wings: { 1: wing(1), '-1': wing(-1) }, mat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, side: THREE.DoubleSide }) };
+  return gullParts;
+}
 function gullModel() {
+  const parts = gullGeometry();
   const g = new THREE.Group();
-  const white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.8 });
-  const grey = new THREE.MeshStandardMaterial({ color: 0x9aa2aa, roughness: 0.8, side: THREE.DoubleSide });
-  const black = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, side: THREE.DoubleSide });
-  const beak = new THREE.MeshStandardMaterial({ color: 0xf0c030, roughness: 0.6 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), white);
-  body.scale.set(1, 0.9, 2.6);
-  g.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), white);
-  head.position.set(0, 0.06, -0.3);
-  g.add(head);
-  const bk = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.09, 6), beak);
-  bk.rotation.x = -Math.PI / 2; bk.position.set(0, 0.05, -0.41);
-  g.add(bk);
-  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.18, 4), white);
-  tail.rotation.x = Math.PI / 2; tail.scale.set(1, 1, 0.25); tail.position.set(0, 0.02, 0.36);
-  g.add(tail);
+  g.add(new THREE.Mesh(parts.body, parts.mat));
   const wings = [];
   for (const s of [1, -1]) {
     const pivot = new THREE.Group();
     pivot.position.set(s * 0.08, 0.04, -0.05);
-    const inner = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.22), grey);
-    inner.rotation.x = -Math.PI / 2; inner.position.x = s * 0.21;
-    pivot.add(inner);
+    pivot.add(new THREE.Mesh(parts.wings[s].inner, parts.mat));
     const outerPivot = new THREE.Group();
     outerPivot.position.x = s * 0.42;
-    const outer = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.16), grey);
-    outer.rotation.x = -Math.PI / 2; outer.position.set(s * 0.2, 0, 0.02);
-    const tip = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.12), black);
-    tip.rotation.x = -Math.PI / 2; tip.position.set(s * 0.36, 0.001, 0.03);
-    outerPivot.add(outer, tip);
+    outerPivot.add(new THREE.Mesh(parts.wings[s].outer, parts.mat));
     pivot.add(outerPivot);
     g.add(pivot);
     wings.push({ pivot, outerPivot, s });
