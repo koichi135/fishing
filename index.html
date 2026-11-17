@@ -450,7 +450,7 @@ function mantaMesh() {
     const top = u < 0.5, c = top ? u * 2 : (1 - u) * 2;
     const x = le + (te - le) * c;
     const th = 0.11 * Math.pow(1 - az, 1.8) * Math.sin(Math.PI * c) + 0.004;
-    o[0] = x; o[1] = (top ? th : -th * 0.45) + 0.08 * az * az; o[2] = zn; o[3] = az; o[4] = top ? 1 : -1;
+    o[0] = x; o[1] = (top ? th : -th * 0.45) + 0.03 * az * az; o[2] = zn; o[3] = az; o[4] = top ? 1 : -1;
   });
   surf(m, 6, 10, (u, v, o) => { const r = 0.012 * (1 - v), a = u * PI2; o[0] = -0.28 - v * 0.9; o[1] = Math.sin(a) * r; o[2] = Math.cos(a) * r; o[3] = 0; o[4] = 1; });
   return build(m);
@@ -467,7 +467,7 @@ function kelpMesh() {
       const rip = Math.sin(v * 11 + k) * 0.03 * v;
       o[0] = ca * (0.03 + l) - sa * w; o[2] = sa * (0.03 + l) + ca * w;
       o[1] = hk + l * 0.035 - v * v * 0.006 + rip * 0.02;
-      o[3] = hk + l * 0.035; o[4] = 1;
+      o[3] = hk + l * 0.035; o[4] = 1 + v;
     });
   }
   return build(m, false);
@@ -572,7 +572,7 @@ function flukeMesh() {
   const C = (s) => [Math.sin(s * 1.3) * 1.4, s * 5.2];
   surf(m, 14, 16, (u, v, o) => {
     const a = u * PI2, c = C(v), r = 0.62 * (1 - v * 0.62) * (1 + 0.04 * Math.cos(a * 7));
-    o[0] = c[0] + Math.cos(a) * r; o[1] = c[1]; o[2] = Math.sin(a) * r; o[3] = v; o[4] = 0;
+    o[0] = c[0] + Math.cos(a) * r; o[1] = c[1]; o[2] = Math.sin(a) * r; o[3] = v; o[4] = -1;
   });
   const top = C(1);
   surf(m, 24, 36, (u, v, o) => {
@@ -629,7 +629,7 @@ for (let k = 0, tries = 0; k < 720 && tries < 40000; tries++) {
   if (len < 2.5) continue;
   const ph = rnd() * PI2, gd = rnd(), w = 0.9 + rnd() * 0.5;
   push(L.kelp, rnd() * PI2, 0, 0, w, len, w, x, h - 0.25, z, 0.16 + 0.16 * gd, 0.19 + 0.07 * gd, 0.05 + 0.02 * gd, 2, ph, len, 0, 0);
-  for (let s = 0; s < 6; s++) PART.push(x, h - 0.25, z, len, 0.15 + rnd() * 0.85, ph, rnd() * PI2, 2);
+  for (let s = 0; s < 10; s++) PART.push(x, h - 0.25, z, len, 0.15 + rnd() * 0.85, ph, rnd() * PI2, 2);
   k++;
 }
 // 植物・スポンジ・サンゴ
@@ -669,22 +669,22 @@ for (let k = 0; k < 150; k++) {
   if ((inCorridor(x, z, 2.5) && h < -2) || (x < 4 && z > -4 && z < 10) || nearSet(x, z)) continue;
   const s = 0.4 + rnd() * rnd() * 2.6;
   push(L.rock[k % 3], rnd() * PI2, (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.5, s * (1 + rnd() * 0.6), s * (0.5 + rnd() * 0.5), s * (1 + rnd() * 0.5),
-    x, h + s * 0.15, z, 0.6 + rnd() * 0.15, 0.55, 0.62 + rnd() * 0.15, 1, 0, 0, 0, 0);
+    x, h - s * 0.12, z, 0.6 + rnd() * 0.15, 0.55, 0.62 + rnd() * 0.15, 1, 0, 0, 0, 0);
 }
 for (let k = 0; k < 46; k++) {
   const sd = k % 2 ? 1 : -1, x = 6 + rnd() * 92, zc = 3 * Math.sin(x * 0.06);
   const z = sd * (16.5 + rnd() * 3) - zc, h = H(x, z + sd * 2.5);
   const s = 2 + rnd() * 2.5;
   if (nearSet(x, z)) continue;
-  push(L.rock[k % 3], rnd() * PI2, (rnd() - 0.5) * 0.3, 0, s * 1.5, s * 0.62, s * 1.3, x, Math.min(h - 0.5, -1.2 - rnd() * 3), z, 0.62, 0.55, 0.6, 1, 0, 0, 0, 0);
+  push(L.rock[k % 3], rnd() * PI2, (rnd() - 0.5) * 0.3, 0, s * 1.5, s * 0.62, s * 1.3, x, Math.min(h - 0.5, -1.0 - s * 0.75 - rnd() * 3), z, 0.62, 0.55, 0.6, 1, 0, 0, 0, 0);
 }
 for (let k = 0; k < 16; k++) {
   const x = 10 + rnd() * 80, z = (rnd() < 0.5 ? -1 : 1) * (6 + rnd() * 9), s = 0.8 + rnd() * 2.2;
-  if (nearSet(x, z)) continue;
+  if (nearSet(x, z) || H(x, z) > -4) continue;
   push(L.rock[k % 3], rnd() * PI2, rnd(), rnd(), s, s * 0.8, s, x, Math.max(H(x, z) + s + 1.5, -6 + rnd() * 3), z, 0.65, 0.58, 0.68, 14, rnd() * PI2, 0, 0, 0);
 }
 // アーチ
-push(L.arch, Math.PI / 2, 0, 0, 4.6, 4.6, 4.6, 19, H(19, 0) + 1.6, 0.3, 0.62, 0.55, 0.62, 1, 0, 0, 0, 0);
+push(L.arch, Math.PI / 2, 0, 0, 4.6, 4.6, 4.6, 19, H(19, 0) + 0.5, 0.3, 0.62, 0.55, 0.62, 1, 0, 0, 0, 0);
 push(L.arch, 0.5, 0, 0.12, 5.5, 5.5, 5.5, 62, H(62, 10) + 2.2, 10, 0.62, 0.55, 0.62, 1, 0, 0, 0, 0);
 push(L.arch, 2.0, 0.05, 0, 3.6, 3.6, 3.6, 44, H(44, -15) + 1.2, -15, 0.62, 0.55, 0.62, 1, 0, 0, 0, 0);
 // 沈没船・石像
@@ -696,8 +696,8 @@ const SCH = [[15, -3.5, 9, 3.2, 0.14, [0.55, 0.62, 0.7]], [30, -4.5, -7, 4, 0.18
   [56, -5, -14, 4.5, 0.2, [0.55, 0.62, 0.7]], [22, -2.8, -13, 3, 0.12, [0.95, 0.45, 0.6]], [70, -6, 11, 5, 0.22, [0.4, 0.75, 0.8]], [8, -2.5, -7, 2.5, 0.11, [0.85, 0.75, 0.3]]];
 for (const [cx, cy, cz, R, sz, col] of SCH) {
   const dir = rnd() < 0.5 ? -1 : 1, sp = (0.9 + rnd() * 0.4) / R * dir;
-  for (let k = 0; k < 64; k++) {
-    pushRaw(L.school, [cx, cy, cz, R, sp * (0.92 + rnd() * 0.16), rnd() * PI2, Math.sqrt(rnd()), (rnd() - 0.5) * 1.6, sz * (0.75 + rnd() * 0.5), 2.5, 0, 0,
+  for (let k = 0; k < 80; k++) {
+    pushRaw(L.school, [cx, cy, cz, R * 0.7, sp * (0.92 + rnd() * 0.16), rnd() * PI2, Math.sqrt(rnd()), (rnd() - 0.5) * 1.1, sz * 1.5 * (0.8 + rnd() * 0.4), 2.5, 0, 0,
       col[0], col[1], col[2], 8, rnd() * PI2, 0.1, 9 + rnd() * 3, 0]);
   }
 }
@@ -721,8 +721,8 @@ const shaderSrc = `struct U {
 }
 @group(0) @binding(0) var<uniform> u: U;
 
-const SIG = vec3f(0.12, 0.052, 0.04);
-const HZN = vec3f(0.86, 0.84, 0.82);
+const SIG = vec3f(0.16, 0.06, 0.042);
+const HZN = vec3f(0.8, 0.86, 0.92);
 
 fn h12(p: vec2f) -> f32 { var q = fract(vec3f(p.x, p.y, p.x) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 fn h13(p: vec3f) -> f32 { var q = fract(p * 0.1031); q += dot(q, q.zyx + 31.32); return fract((q.x + q.y) * q.z); }
@@ -755,11 +755,11 @@ fn sky(d: vec3f) -> vec3f {
 
 fn waterCol(d: vec3f, y: f32) -> vec3f {
   let up = clamp(d.y * 0.5 + 0.5, 0.0, 1.0);
-  var c = mix(vec3f(0.003, 0.025, 0.09), vec3f(0.01, 0.13, 0.27), smoothstep(0.1, 0.6, up));
-  c = mix(c, vec3f(0.07, 0.42, 0.5), smoothstep(0.55, 1.0, up));
+  var c = mix(vec3f(0.002, 0.014, 0.07), vec3f(0.006, 0.075, 0.2), smoothstep(0.15, 0.62, up));
+  c = mix(c, vec3f(0.08, 0.5, 0.56), smoothstep(0.58, 1.0, up));
   let g = max(dot(d, u.sunW.xyz), 0.0);
   c += vec3f(0.05, 0.22, 0.24) * pow(g, 5.0);
-  return c * exp(min(y, 0.0) * 0.045);
+  return c * exp(min(y, 0.0) * 0.06);
 }
 
 fn fogW(c: vec3f, p: vec3f) -> vec3f {
@@ -774,7 +774,7 @@ fn fogW(c: vec3f, p: vec3f) -> vec3f {
     let T = exp(-SIG * wd);
     r = c * T + waterCol(normalize(vec3f(dir.x, -0.6, dir.z)), 0.0) * (1.0 - T);
   }
-  return mix(HZN * 0.95, r, exp(-(d - wd) * 0.0035));
+  return mix(HZN * 0.95, r, exp(-(d - wd) * 0.0018));
 }
 fn transm(p: vec3f) -> vec3f {
   let ro = u.cam.xyz; let d = length(p - ro);
@@ -803,8 +803,8 @@ fn caus(p: vec3f) -> f32 {
 
 fn wave(p: vec2f, det: f32) -> vec3f {
   var D = array<vec4f, 7>(
-    vec4f(0.8, 0.6, 0.35, 0.07), vec4f(-0.4, 0.92, 0.55, 0.045), vec4f(0.95, -0.3, 0.9, 0.03),
-    vec4f(0.2, -0.98, 1.6, 0.014), vec4f(-0.75, -0.66, 2.7, 0.008), vec4f(0.6, 0.8, 4.3, 0.005), vec4f(-0.9, 0.44, 7.1, 0.003));
+    vec4f(0.8, 0.6, 0.31, 0.04), vec4f(-0.47, 0.88, 0.47, 0.035), vec4f(0.97, -0.24, 0.83, 0.025),
+    vec4f(0.13, -0.99, 1.37, 0.013), vec4f(-0.79, -0.61, 2.3, 0.008), vec4f(0.56, 0.83, 3.9, 0.005), vec4f(-0.93, 0.37, 6.7, 0.0032));
   var h = 0.0; var g = vec2f(0.0);
   let t = u.cam.w;
   for (var i = 0; i < 7; i++) {
@@ -835,7 +835,7 @@ fn shade(p: vec3f, n: vec3f, alb: vec3f, sp: f32, gl: f32, tr: f32, cav: f32) ->
     let ca = caus(p) * exp(-dep * 0.05) * (1.0 - smoothstep(25.0, 65.0, dc));
     let ndl = max(dot(n, L), 0.0);
     let bk = max(-dot(n, L), 0.0) * tr;
-    let lit = ndl * (0.3 + 1.7 * ca) + bk * (0.45 + 0.8 * ca);
+    let lit = ndl * (0.35 + 2.4 * ca) + bk * (0.3 + 0.5 * ca);
     let amb = mix(vec3f(0.01, 0.045, 0.085), vec3f(0.06, 0.25, 0.3), n.y * 0.5 + 0.5) * exp(-dep * 0.045);
     var c = alb * (sT * lit + amb * cav * 1.8);
     let hv = normalize(L + V);
@@ -919,7 +919,7 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
     let f = vec3f(-sin(ang) * sg, cos(ang * 0.5 + v.m1.y) * v.m1.z * 0.5 * v.m1.x / R, cos(ang) * 0.75 * sg);
     basis(f, pos, v.m2.x, -0.22 * sg, &M);
     let az = abs(lp.z);
-    lp.y += sin(t * 1.7 + v.m1.y - az * 1.6) * pow(az, 1.5) * 0.32;
+    lp.y += sin(t * 1.2 + v.m1.y - az * 1.4) * pow(az, 1.6) * 0.2;
   }
   var w = vec3f(dot(M[0], vec4f(lp, 1.0)), dot(M[1], vec4f(lp, 1.0)), dot(M[2], vec4f(lp, 1.0)));
   let c0 = vec3f(M[0].x, M[1].x, M[2].x); let c1 = vec3f(M[0].y, M[1].y, M[2].y); let c2 = vec3f(M[0].z, M[1].z, M[2].z);
@@ -945,7 +945,7 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
   let dc = length(u.cam.xyz - p);
   var alb = i.c.rgb; var sp = 0.05; var gl = 16.0; var tr = 0.0; var cav = 1.0; var em = vec3f(0.0);
   switch mat {
-    case 0, 1, 14: {
+    case 0, 1, 10, 14: {
       let nz = fbm3(p * 0.33);
       let fine = n3(p * 3.1);
       if (dc < 28.0) {
@@ -957,12 +957,19 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
       var rock = mix(vec3f(0.3, 0.26, 0.31), vec3f(0.46, 0.38, 0.36), nz) * (0.72 + 0.45 * fine);
       rock *= 0.85 + 0.15 * sin(p.y * 3.3 + nz * 6.0);
       if (mat == 0) {
-        var sand = vec3f(0.8, 0.71, 0.56) * (0.82 + 0.3 * fine);
+        var sand = vec3f(0.95, 0.85, 0.66) * (0.82 + 0.3 * fine);
         sand *= 0.9 + 0.1 * sin(p.x * 2.6 + p.z * 1.2 + nz * 7.0);
         alb = mix(sand, rock, smoothstep(0.22, 0.45, slope + (nz - 0.5) * 0.5));
-        let gc = smoothstep(0.56, 0.66, fbm3(vec3f(p.x, 0.0, p.z) * 0.11 + vec3f(7.0, 3.0, 1.0))) * (1.0 - smoothstep(0.15, 0.35, slope));
+        let gc = smoothstep(0.6, 0.7, fbm3(vec3f(p.x, 0.0, p.z) * 0.11 + vec3f(7.0, 3.0, 1.0))) * (1.0 - smoothstep(0.15, 0.35, slope));
         alb = mix(alb, vec3f(0.6, 0.06, 0.36) * (0.6 + 0.8 * fine), gc);
         em += vec3f(0.5, 0.05, 0.3) * gc * pow(fine, 6.0) * 0.08;
+      } else if (mat == 10) {
+        alb = mix(vec3f(0.78, 0.76, 0.7), vec3f(0.6, 0.57, 0.52), nz) * (0.75 + 0.4 * fine);
+        if (i.a.y > -0.5) {
+          let rune = 1.0 - smoothstep(0.015, 0.04, abs(fract(i.a.x * 4.0 + i.a.y * 1.5) - 0.5));
+          em = vec3f(0.1, 0.8, 0.75) * rune * (0.6 + 0.4 * sin(u.cam.w * 1.3 + i.a.y * 6.0)) * 0.25;
+          alb *= 1.0 - rune * 0.5;
+        }
       } else {
         alb = rock * mix(vec3f(1.0), i.c.rgb * 1.6, 0.5);
       }
@@ -977,15 +984,16 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
     }
     case 2: {
       let leaf = i.a.y;
+      let lt = max(leaf - 1.0, 0.0);
       alb = i.c.rgb * (0.45 + 0.55 * i.a.x) * (0.8 + 0.35 * n3(p * 4.0));
-      alb = mix(alb, alb * vec3f(1.3, 1.1, 0.55), leaf * 0.5);
-      tr = 0.55; sp = 0.25; gl = 30.0; cav = 0.35 + 0.65 * i.a.x;
+      if (leaf > 0.5) { alb *= (0.7 + 0.5 * lt) * (0.85 + 0.15 * sin(lt * 40.0)); alb = mix(alb, alb * vec3f(1.35, 1.1, 0.5), 0.4); }
+      tr = 0.25; sp = 0.25; gl = 30.0; cav = 0.35 + 0.65 * i.a.x;
     }
     case 3: {
       let fr = 1.0 - abs(dot(n, V));
       let iri = 0.5 + 0.5 * cos(6.2831 * (vec3f(0.0, 0.33, 0.67) + fr * 1.1 + i.a.x * 0.6 + i.c.r));
-      alb = mix(i.c.rgb, iri * vec3f(0.9, 0.5, 1.0), 0.55) * (0.5 + 0.6 * i.a.x);
-      em = iri * vec3f(0.5, 0.2, 0.7) * fr * 0.07 * i.a.x;
+      alb = mix(i.c.rgb, iri * vec3f(1.0, 0.55, 1.0), 0.75) * (0.5 + 0.7 * i.a.x);
+      em = iri * vec3f(0.6, 0.25, 0.8) * fr * fr * 0.18 * i.a.x;
       tr = 0.7; sp = 0.6; gl = 40.0; cav = 0.4 + 0.6 * i.a.x;
     }
     case 4: {
@@ -1023,15 +1031,6 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
       let spot = smoothstep(0.62, 0.7, n3(i.l * 9.0));
       alb = select(vec3f(0.85, 0.87, 0.9), mix(vec3f(0.05, 0.07, 0.12), vec3f(0.55, 0.6, 0.7), spot), top);
       sp = 0.3; gl = 30.0;
-    }
-    case 10: {
-      let nz = fbm3(p * 0.9);
-      alb = vec3f(0.85, 0.83, 0.78) * (0.75 + 0.35 * nz);
-      let rune = 1.0 - smoothstep(0.02, 0.06, abs(fract(i.a.x * 5.0 + i.a.y * 2.0) - 0.5));
-      em = vec3f(0.1, 0.9, 0.8) * rune * (0.5 + 0.5 * sin(u.cam.w * 1.3 + i.a.y * 6.0)) * 0.35;
-      let moss = smoothstep(0.55, 0.9, n.y) * smoothstep(0.4, 0.6, nz);
-      alb = mix(alb, vec3f(0.1, 0.4, 0.33), moss * 0.7);
-      cav = 0.55 + 0.45 * nz; sp = 0.1;
     }
     case 11: {
       let pl = abs(fract(i.a.y * 16.0) - 0.5);
@@ -1081,20 +1080,23 @@ const SN = 192u;
     col = sky(vec3f(R.x, abs(R.y), R.z)) * F;
     let sd = max(dot(R, u.sun.xyz), 0.0);
     let gl = smoothstep(0.55, 0.9, n2(p.xz * 3.0 + vec2f(u.cam.w * 0.7, -u.cam.w * 0.5)) * n2(p.xz * 5.3 - u.cam.w * 0.4) * 2.0);
-    col += vec3f(1.0, 0.85, 0.6) * pow(sd, mix(60.0, 300.0, det)) * mix(1.2, 1.0 + 7.0 * gl, det);
-    a = F;
+    col += vec3f(1.0, 0.85, 0.6) * (pow(sd, 60.0) * 0.35 + pow(sd, 400.0) * 9.0 * gl * gl * det);
+    let body = vec3f(0.01, 0.09, 0.13) * (1.0 - F) * 0.4;
+    col += body; a = F + (1.0 - F) * 0.4;
     let hz = 1.0 - exp(-d * 0.0035);
     col = mix(col, HZN * 0.95, hz); a = mix(a, 1.0, hz);
   } else {
     let nn = -n;
     let r = refract(V, nn, 1.33);
     let wc = waterCol(reflect(V, nn), ro.y) * 1.1;
-    if (dot(r, r) < 1e-5) { col = wc; }
-    else {
-      let ci = max(dot(-V, nn), 0.0);
-      let F = 0.03 + 0.97 * pow(1.0 - ci, 4.0);
-      col = mix(sky(r) * vec3f(0.75, 0.95, 1.0), wc, F);
+    let ci = max(dot(-V, nn), 0.0);
+    let kk = 1.0 - 1.33 * 1.33 * (1.0 - ci * ci);
+    let win = smoothstep(0.0, 0.22, kk);
+    var tc = wc;
+    if (kk > 0.0) {
+      tc = sky(r) * vec3f(0.75, 0.95, 1.0) + vec3f(1.0, 0.9, 0.7) * pow(max(dot(r, u.sun.xyz), 0.0), 10.0) * 1.5;
     }
+    col = mix(wc, tc, win) + vec3f(0.15, 0.4, 0.45) * exp(-kk * kk * 400.0) * 0.6;
     col = fogW(col, p);
   }
   let sr = length(p.xz - u.spl.xy); let ag = u.spl.z;
@@ -1151,7 +1153,7 @@ struct PO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
     p = u.cam.xyz + (fract((v.d0.xyz + dr - u.cam.xyz) / B) - 0.5) * B;
     let dd = length(p - u.cam.xyz);
     al = smoothstep(B * 0.5, B * 0.3, dd) * smoothstep(0.3, 1.2, dd) * select(0.0, 1.0, p.y < -0.1);
-    col = vec3f(0.55, 0.8, 0.85) * 0.35 * (0.5 + h12(v.d0.xz));
+    col = vec3f(0.55, 0.8, 0.85) * 0.55 * (0.5 + h12(v.d0.xz));
   } else if (ty == 1) {
     let Hr = -v.d0.y;
     let f = fract(t * v.d1.x / Hr + v.d1.y);
@@ -1163,16 +1165,16 @@ struct PO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
     col = vec3f(0.6, 0.85, 0.95) * 0.9;
   } else {
     let s = sway(v.d1.x, v.d1.y, v.d0.w);
-    sz = 0.012 + 0.012 * fract(v.d1.z * 5.3);
+    sz = 0.02 + 0.02 * fract(v.d1.z * 5.3);
     p = vec3f(v.d0.x + cos(v.d1.z) * 0.14 + s.x, v.d0.y + v.d1.x * v.d0.w, v.d0.z + sin(v.d1.z) * 0.14 + s.y);
     let tw = 0.5 + 0.5 * sin(t * (1.5 + h12(v.d1.zz) * 3.0) + v.d1.z * 17.0);
-    col = mix(vec3f(1.0, 0.75, 0.25), vec3f(0.55, 1.0, 0.35), step(0.6, fract(v.d1.z * 3.7))) * (0.15 + 1.6 * pow(tw, 6.0));
+    col = mix(vec3f(1.0, 0.75, 0.25), vec3f(0.55, 1.0, 0.35), step(0.6, fract(v.d1.z * 3.7))) * (0.3 + 3.0 * pow(tw, 6.0));
   }
   col *= transm(p);
   var c = u.vp * vec4f(p, 1.0);
   let px = sz * u.misc.y / max(c.w, 1e-3);
   let pc = clamp(px, 1.25, 24.0);
-  al *= min((px * px) / (pc * pc), 1.0) * smoothstep(0.35, 1.5, c.w);
+  al *= min((px * px) / (pc * pc), 1.0) * smoothstep(0.35, select(1.5, 3.0, ty == 1), c.w);
   c = vec4f(c.xy + q * pc * 2.0 * u.res.zw * c.w, c.zw);
   if (c.w < 0.05) { c = vec4f(0.0, 0.0, -1.0, 1.0); }
   var o: PO; o.pos = c; o.uv = q; o.col = col * al; o.ty = f32(ty);
@@ -1195,11 +1197,11 @@ struct PO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
 fn aces(x: vec3f) -> vec3f { return clamp(x * (2.51 * x + 0.03) / (x * (2.43 * x + 0.59) + 0.14), vec3f(0.0), vec3f(1.0)); }
 fn shaft(p: vec3f) -> f32 {
   let L = u.sunW.xyz;
-  let q = (p.xz - L.xz * (p.y / L.y)) * 0.22;
+  let q = (p.xz - L.xz * (p.y / L.y)) * 0.16;
   let t = u.cam.w * 0.05;
   let a = n2(q + vec2f(t, t * 0.6));
   let b = n2(q * 2.3 - vec2f(t * 1.3, -t));
-  return pow(clamp(a * 0.65 + b * 0.35, 0.0, 1.0), 7.0);
+  return smoothstep(0.45, 0.85, a * 0.7 + b * 0.3);
 }
 @fragment fn fs_post(i: FO) -> @location(0) vec4f {
   let ip = vec2i(i.pos.xy);
@@ -1222,10 +1224,10 @@ fn shaft(p: vec3f) -> f32 {
       let tt = (f32(k) + jt) / f32(N);
       let t = tt * tt * dist;
       let p = ro + dir * t;
-      acc += shaft(p) * exp(-SIG * (t + max(-p.y, 0.0) * 0.6)) * (2.0 * tt);
+      acc += shaft(p) * exp(-SIG * (t + max(-p.y, 0.0) * 0.8)) * (2.0 * tt);
     }
     acc *= dist / f32(N);
-    let ph = 0.35 + 1.6 * pow(max(dot(dir, u.sunW.xyz), 0.0), 5.0);
+    let ph = 0.25 + 2.2 * pow(max(dot(dir, u.sunW.xyz), 0.0), 4.0);
     col += acc * vec3f(0.55, 0.95, 1.0) * ph * u.misc.w;
   }
   col *= u.misc.x;
@@ -1814,7 +1816,7 @@ const POSES = [
   [22, -6.8, -4, 27, -1.5, -2.5, 30],
   [40.5, -5.2, -2.5, 50, -8, -10, 40],
   [21.5, -5.2, 2.5, 28, -2.0, 9, 51],
-  [52, -3.2, 1.5, 78, -6.5, 8, 60],
+  [52, -3.2, 1.5, 78, -6.5, 8, 60, 0],
 ];
 const BW = [[-3, 2.6, 4], [3, 1.2, 2], [8, -2.6, 1.5], [14, -3.8, 0.4], [20, -4.4, 0.2], [26, -4, 4.5], [33, -5, -2], [42, -6, -6.5],
   [52, -5, -4], [60, -4.5, 2], [66, -6.5, 10], [55, -3.5, 14], [40, -2.8, 12], [28, -5.8, -6], [16, -3, -8], [8, -1.8, -3], [2, 1.5, 0]];
@@ -1908,7 +1910,20 @@ function frame(now) {
   if (POSE >= 0) {
     const p = POSES[POSE % POSES.length];
     cam.x = p[0]; cam.y = p[1]; cam.z = p[2]; cam.tx = p[3]; cam.ty = p[4]; cam.tz = p[5];
-    if (FIXT < 0) G.time = p[6] + frameN * 0; else G.time = FIXT;
+    G.time = FIXT >= 0 ? FIXT : p[6];
+    if (p[7] !== undefined) {
+      const m = L.manta, o = p[7] * 20;
+      if (p[8] === undefined) {
+        for (let t = 0; t < 400; t += 0.5) {
+          const ang = t * m[o + 4] + m[o + 5], z = m[o + 2] + Math.sin(ang) * m[o + 3] * 0.75, x = m[o] + Math.cos(ang) * m[o + 3];
+          if (Math.abs(z) < 2.5 && x > 25 && x < 45) { p[8] = t; break; }
+        }
+      }
+      const t = p[8], ang = t * m[o + 4] + m[o + 5];
+      const mx = m[o] + Math.cos(ang) * m[o + 3], my = m[o + 1] + Math.sin(ang * 0.5 + m[o + 5]) * m[o + 6], mz = m[o + 2] + Math.sin(ang) * m[o + 3] * 0.75;
+      G.time = t; cam.tx = mx; cam.ty = my + 0.3; cam.tz = mz; cam.x = mx - 6.0; cam.y = Math.min(my + 2.0, -0.7); cam.z = mz + 3.0;
+      cam.y = Math.max(cam.y, H(cam.x, cam.z) + 1);
+    }
   } else if (bench.on) updateBench(dt);
   else updateCamera(dt);
   // HUD
