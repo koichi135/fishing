@@ -318,6 +318,7 @@ function H(x, z) {
 }
 const Hd = (x, z) => H(x, z) + (vfbm(x * 0.21, 0.3, z * 0.21, 3) - 0.5) * (0.6 + 2.6 * sstep(14, 22, Math.abs(z + 3 * Math.sin(x * 0.06))));
 const floorAt = (x, z) => H(x, z) + 0.55;
+const steep = (x, z, k) => Math.hypot(Hd(x + 0.5, z) - Hd(x - 0.5, z), Hd(x, z + 0.5) - Hd(x, z - 0.5)) > k;
 
 const SUN = [0.42, 0.62, -0.34];
 { const l = Math.hypot(...SUN); SUN[0] /= l; SUN[1] /= l; SUN[2] /= l; }
@@ -625,7 +626,7 @@ pushRaw(L.terrain, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.5, 0.5, 0.5, 0]);
 for (let k = 0, tries = 0; k < 720 && tries < 40000; tries++) {
   const x = -1 + rnd() * 112, z = (rnd() * 2 - 1) * 26;
   const h = Hd(x, z);
-  if (h > -3.2 || inCorridor(x, z, 4.2) || nearSet(x, z)) continue;
+  if (h > -3.2 || inCorridor(x, z, 4.2) || nearSet(x, z) || steep(x, z, 0.9)) continue;
   if (vfbm(x * 0.055, 0.5, z * 0.055, 3) < 0.4 + rnd() * 0.12) continue;
   const top = -0.25 - rnd() * rnd() * 3.2, len = top - h;
   if (len < 2.5) continue;
@@ -639,21 +640,21 @@ for (let k = 0, tries = 0; k < 720 && tries < 40000; tries++) {
 const IRI = [[0.55, 0.2, 0.75], [0.85, 0.3, 0.7], [0.4, 0.25, 0.85], [0.95, 0.45, 0.8]];
 for (let k = 0, tries = 0; k < 380 && tries < 20000; tries++) {
   const x = rnd() * 100, z = (rnd() * 2 - 1) * 24, h = Hd(x, z);
-  if (h > -2 || inCorridor(x, z, 2.2)) continue;
+  if (h > -2 || inCorridor(x, z, 2.2) || steep(x, z, 0.6)) continue;
   const c = IRI[k % 4], s = 0.6 + rnd() * 1.2;
   push(L.fan, rnd() * PI2, 0, (rnd() - 0.5) * 0.3, s, s * (0.8 + rnd() * 0.6), s, x, h - 0.1, z, c[0], c[1], c[2], 3, rnd() * PI2, s, 0, 0);
   k++;
 }
 for (let k = 0, tries = 0; k < 1700 && tries < 30000; tries++) {
   const x = -1 + rnd() * 100, z = (rnd() * 2 - 1) * 24, h = Hd(x, z);
-  if (h > -1.5 || vfbm(x * 0.09 + 3, 1, z * 0.09, 2) < 0.45) continue;
+  if (h > -1.5 || vfbm(x * 0.09 + 3, 1, z * 0.09, 2) < 0.45 || steep(x, z, 0.7)) continue;
   const s = 0.7 + rnd() * 1.1, m = rnd();
   push(L.tuft, rnd() * PI2, 0, 0, s, s, s, x, h - 0.05, z, 0.85 + 0.15 * m, 0.08 + 0.2 * m, 0.45 + 0.2 * m, 6, rnd() * PI2, 1, 0, 0);
   k++;
 }
 for (let k = 0, tries = 0; k < 130 && tries < 10000; tries++) {
   const x = 3 + rnd() * 95, z = (rnd() * 2 - 1) * 22, h = Hd(x, z);
-  if (h > -2.5 || inCorridor(x, z, 1.8)) continue;
+  if (h > -2.5 || inCorridor(x, z, 1.8) || steep(x, z, 0.45)) continue;
   const s = 0.6 + rnd() * 0.9, o = rnd();
   push(L.sponge, rnd() * PI2, 0, (rnd() - 0.5) * 0.2, s, s * (0.8 + rnd()), s, x, h - 0.15, z, 0.85, 0.42 + 0.3 * o, 0.12 + 0.1 * o, 4, 0, 0, 0, 0);
   k++;
@@ -661,7 +662,7 @@ for (let k = 0, tries = 0; k < 130 && tries < 10000; tries++) {
 const CC = [[1.0, 0.35, 0.5], [1.0, 0.55, 0.2], [0.3, 0.85, 0.8], [0.9, 0.3, 0.85]];
 for (let k = 0, tries = 0; k < 260 && tries < 10000; tries++) {
   const x = 2 + rnd() * 95, z = (rnd() * 2 - 1) * 22, h = Hd(x, z);
-  if (h > -2 || inCorridor(x, z, 1.6)) continue;
+  if (h > -2 || inCorridor(x, z, 1.6) || steep(x, z, 0.55)) continue;
   const c = CC[k % 4], s = 0.6 + rnd() * 1.0;
   push(L.coral, rnd() * PI2, 0, 0, s, s, s, x, h - 0.1, z, c[0], c[1], c[2], 5, 0, 0, 0, 0);
   k++;
@@ -672,7 +673,7 @@ for (let k = 0; k < 150; k++) {
   if ((inCorridor(x, z, 2.5) && h < -2) || (x < 4 && z > -4 && z < 10) || nearSet(x, z)) continue;
   const s = 0.4 + rnd() * rnd() * 2.6;
   push(L.rock[k % 3], rnd() * PI2, (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.5, s * (1 + rnd() * 0.6), s * (0.5 + rnd() * 0.5), s * (1 + rnd() * 0.5),
-    x, h - s * 0.12, z, 0.6 + rnd() * 0.15, 0.55, 0.62 + rnd() * 0.15, 1, 0, 0, 0, 0);
+    x, h - s * (h > -1.5 ? 0.4 : 0.12), z, 0.6 + rnd() * 0.15, 0.55, 0.62 + rnd() * 0.15, 1, 0, 0, 0, 0);
 }
 for (let k = 0; k < 46; k++) {
   const sd = k % 2 ? 1 : -1, x = 6 + rnd() * 92, zc = 3 * Math.sin(x * 0.06);
@@ -742,12 +743,12 @@ fn fbm3(p: vec3f) -> f32 { var s = 0.0; var a = 0.5; var q = p; for (var i = 0; 
 fn fbm2(p: vec2f) -> f32 { var s = 0.0; var a = 0.5; var q = p; for (var i = 0; i < 4; i++) { s += a * n2(q); q = q * 2.03 + vec2f(3.1, 1.7); a *= 0.5; } return s; }
 fn ign(p: vec2f) -> f32 { return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715)))); }
 
-fn sky(d: vec3f) -> vec3f {
+fn sky(d: vec3f, dk: f32) -> vec3f {
   let y = max(d.y, 0.0);
   var c = mix(HZN, vec3f(0.16, 0.42, 0.85), pow(y, 0.5));
   let s = max(dot(d, u.sun.xyz), 0.0);
   c += vec3f(1.0, 0.75, 0.45) * (pow(s, 6.0) * 0.3 + pow(s, 48.0) * 0.6);
-  c += vec3f(30.0, 26.0, 20.0) * smoothstep(0.9993, 0.9997, s);
+  c += vec3f(30.0, 26.0, 20.0) * smoothstep(0.9993, 0.9997, s) * dk;
   if (d.y > 0.0) {
     let cp = d.xz / (d.y + 0.12) * 0.9 + vec2f(u.cam.w * 0.004, 0.0);
     let cl = smoothstep(0.5, 0.85, fbm2(cp * 1.5));
@@ -774,8 +775,8 @@ fn fogW(c: vec3f, p: vec3f) -> vec3f {
   var r = c; var wd = 0.0;
   if (p.y < 0.0) {
     wd = d * (-p.y) / max(ro.y - p.y, 1e-3);
-    let T = exp(-SIG * wd);
-    r = c * T + waterCol(normalize(vec3f(dir.x, -0.6, dir.z)), 0.0) * (1.0 - T);
+    let T = exp(-SIG * wd * 1.8);
+    r = c * T + vec3f(0.01, 0.1, 0.14) * (1.0 - T);
   }
   return mix(HZN * 0.95, r, exp(-(d - wd) * 0.0018));
 }
@@ -801,7 +802,7 @@ fn caus(p: vec3f) -> f32 {
   let L = u.sunW.xyz;
   let q = p.xz - L.xz * (p.y / L.y);
   let t = u.cam.w * 0.45 + 23.0;
-  return caus1(q * 0.16, t) * 0.9 + caus1(q * 0.23 + vec2f(0.37, 0.11), t * 1.1 + 7.0) * 0.6;
+  return caus1(q * 0.27, t) * 0.8 + caus1(q * 0.41 + vec2f(0.37, 0.11), t * 1.1 + 7.0) * 0.6;
 }
 
 fn wave(p: vec2f, det: f32) -> vec3f {
@@ -838,7 +839,7 @@ fn shade(p: vec3f, n: vec3f, alb: vec3f, sp: f32, gl: f32, tr: f32, cav: f32) ->
     let ca = caus(p) * exp(-dep * 0.05) * (1.0 - smoothstep(25.0, 65.0, dc));
     let ndl = max(dot(n, L), 0.0);
     let bk = max(-dot(n, L), 0.0) * tr;
-    let lit = ndl * (0.35 + 2.4 * ca) + bk * (0.3 + 0.5 * ca);
+    let lit = ndl * (0.35 + 3.6 * ca) + bk * (0.3 + 0.6 * ca);
     let amb = mix(vec3f(0.01, 0.045, 0.085), vec3f(0.06, 0.25, 0.3), n.y * 0.5 + 0.5) * exp(-dep * 0.045);
     var c = alb * (sT * lit + amb * cav * 1.8);
     let hv = normalize(L + V);
@@ -869,7 +870,7 @@ fn viewDir(fc: vec2f) -> vec3f {
 }
 @fragment fn fs_bg(i: FO) -> @location(0) vec4f {
   let d = viewDir(i.pos.xy);
-  if (u.cam.y >= 0.0) { return vec4f(mix(HZN * 0.95, sky(d), smoothstep(-0.02, 0.06, d.y)), 1.0); }
+  if (u.cam.y >= 0.0) { return vec4f(mix(HZN * 0.95, sky(d, 1.0), smoothstep(-0.02, 0.06, d.y)), 1.0); }
   return vec4f(waterCol(d, u.cam.y), 1.0);
 }
 
@@ -1074,16 +1075,21 @@ const SN = 192u;
   let p = i.w; let ro = u.cam.xyz; let dv = p - ro; let d = length(dv); let V = dv / d;
   let det = 1.0 - smoothstep(8.0, 90.0, d);
   let wv = wave(p.xz, det);
-  let n = normalize(vec3f(-wv.y, 1.0, -wv.z) * vec3f(1.0, 1.0 + (1.0 - det) * 2.0, 1.0));
+  let tq = u.cam.w;
+  let rq = p.xz * 2.3 + vec2f(tq * 0.6, tq * 0.35); let r0 = n2(rq);
+  let rq2 = p.xz * 5.1 - vec2f(tq * 0.5, -tq * 0.8); let s0 = n2(rq2);
+  let rg = vec2f(n2(rq + vec2f(0.05, 0.0)) - r0, n2(rq + vec2f(0.0, 0.05)) - r0) / 0.05 * 2.3
+         + vec2f(n2(rq2 + vec2f(0.05, 0.0)) - s0, n2(rq2 + vec2f(0.0, 0.05)) - s0) / 0.05 * 5.1 * 0.4;
+  let n = normalize(vec3f(-wv.y - rg.x * 0.045 * det, 1.0 + (1.0 - det) * 2.0, -wv.z - rg.y * 0.045 * det));
   var col: vec3f; var a = 1.0;
   if (ro.y >= 0.0) {
     let ci = max(dot(-V, n), 0.0);
     let F = 0.02 + 0.98 * pow(1.0 - ci, 5.0);
     let R = reflect(V, n);
-    col = sky(vec3f(R.x, abs(R.y), R.z)) * F;
+    col = sky(vec3f(R.x, abs(R.y), R.z), 0.0) * F;
     let sd = max(dot(R, u.sun.xyz), 0.0);
     let gl = smoothstep(0.55, 0.9, n2(p.xz * 3.0 + vec2f(u.cam.w * 0.7, -u.cam.w * 0.5)) * n2(p.xz * 5.3 - u.cam.w * 0.4) * 2.0);
-    col += vec3f(1.0, 0.85, 0.6) * (pow(sd, 60.0) * 0.35 + pow(sd, 400.0) * 9.0 * gl * gl * det);
+    col += vec3f(1.0, 0.85, 0.6) * (pow(sd, 40.0) * 0.1 + pow(sd, 900.0) * 2.5 * det);
     let body = vec3f(0.01, 0.09, 0.13) * (1.0 - F) * 0.4;
     col += body; a = F + (1.0 - F) * 0.4;
     let hz = 1.0 - exp(-d * 0.0035);
@@ -1097,7 +1103,7 @@ const SN = 192u;
     let win = smoothstep(0.0, 0.22, kk);
     var tc = wc;
     if (kk > 0.0) {
-      tc = sky(r) * vec3f(0.75, 0.95, 1.0) + vec3f(1.0, 0.9, 0.7) * pow(max(dot(r, u.sun.xyz), 0.0), 10.0) * 1.5;
+      tc = sky(r, 0.25) * vec3f(0.75, 0.95, 1.0) + vec3f(1.0, 0.9, 0.7) * pow(max(dot(r, u.sun.xyz), 0.0), 10.0) * 1.5;
     }
     col = mix(wc, tc, win) + vec3f(0.15, 0.4, 0.45) * exp(-kk * kk * 400.0) * 0.6;
     col = fogW(col, p);
@@ -1816,7 +1822,7 @@ function updateCamera(dt) {
 }
 
 // ================================================================ 撮影ポーズ / ベンチマーク
-const POSES = [
+const POSES = Q.has('cp') ? [Q.get('cp').split(',').map(Number)] : [
   [-4.2, 3.0, 5.2, 10, -0.8, 0, 12],
   [8.5, -3.6, 1.2, 19, -4.2, 0.2, 20],
   [22, -6.8, -4, 27, -1.5, -2.5, 30],
@@ -1993,7 +1999,7 @@ function frame(now) {
 toReady();
 if (BENCH || POSE >= 0) document.body.classList.add('free');
 window.__ready = true;
-if (CAP) window.__game = G;
+if (CAP) { window.__game = G; window.__L = L; window.__Hd = Hd; }
 window.__grab = () => new Promise((r) => { capReq = r; });
 requestAnimationFrame(frame);
 </script>
