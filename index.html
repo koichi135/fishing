@@ -459,17 +459,19 @@ function mantaMesh() {
 function kelpMesh() {
   const m = newMesh();
   surf(m, 5, 34, (u, v, o) => { const a = u * PI2, r = 0.035 * (1 - v * 0.5); o[0] = Math.cos(a) * r; o[1] = v; o[2] = Math.sin(a) * r; o[3] = v; o[4] = 0; });
-  for (let k = 0; k < 24; k++) {
-    const hk = 0.05 + (0.92 * k) / 24, ang = k * 2.39996, Lf = 0.8 + 0.35 * Math.sin(k * 1.7) + 0.4 * (1 - hk);
+  const r0 = seed; seed = 4242;
+  for (let k = 0; k < 26; k++) {
+    const hk = 0.04 + (0.93 * (k + (rnd() - 0.5) * 0.8)) / 26, ang = rnd() * PI2, Lf = 0.6 + 0.7 * rnd() + 0.4 * (1 - hk), dr = (rnd() - 0.3) * 0.06, tw = (rnd() - 0.5) * 1.2;
     const ca = Math.cos(ang), sa = Math.sin(ang);
     surf(m, 1, 7, (uu, v, o) => {
       const l = v * Lf, w = (0.2 * Math.pow(Math.sin(Math.PI * Math.min(1, v * 1.08 + 0.02)), 0.8) + 0.008) * (uu - 0.5) * 2;
-      const rip = Math.sin(v * 11 + k) * 0.03 * v;
-      o[0] = ca * (0.03 + l) - sa * w; o[2] = sa * (0.03 + l) + ca * w;
-      o[1] = hk + l * 0.035 - v * v * 0.006 + rip * 0.02;
+      const rip = Math.sin(v * 11 + k) * 0.03 * v, ct = Math.cos(tw * v), st = Math.sin(tw * v);
+      o[0] = ca * (0.03 + l) - sa * w * ct; o[2] = sa * (0.03 + l) + ca * w * ct;
+      o[1] = hk + l * 0.035 - v * v * dr + rip * 0.02 + w * st * 0.08;
       o[3] = hk + l * 0.035; o[4] = 1 + v;
     });
   }
+  seed = r0;
   return build(m, false);
 }
 // ---- 扇状の虹色植物
@@ -622,34 +624,35 @@ pushRaw(L.terrain, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.5, 0.5, 0.5, 0]);
 // 昆布の森
 for (let k = 0, tries = 0; k < 720 && tries < 40000; tries++) {
   const x = -1 + rnd() * 112, z = (rnd() * 2 - 1) * 26;
-  const h = H(x, z);
+  const h = Hd(x, z);
   if (h > -3.2 || inCorridor(x, z, 4.2) || nearSet(x, z)) continue;
   if (vfbm(x * 0.055, 0.5, z * 0.055, 3) < 0.4 + rnd() * 0.12) continue;
   const top = -0.25 - rnd() * rnd() * 3.2, len = top - h;
   if (len < 2.5) continue;
   const ph = rnd() * PI2, gd = rnd(), w = 0.9 + rnd() * 0.5;
-  push(L.kelp, rnd() * PI2, 0, 0, w, len, w, x, h - 0.25, z, 0.16 + 0.16 * gd, 0.19 + 0.07 * gd, 0.05 + 0.02 * gd, 2, ph, len, 0, 0);
-  for (let s = 0; s < 10; s++) PART.push(x, h - 0.25, z, len, 0.15 + rnd() * 0.85, ph, rnd() * PI2, 2);
+  const ca = rnd() * PI2, cm = 0.02 + rnd() * 0.06;
+  push(L.kelp, rnd() * PI2, 0, 0, w, len, w, x, h - 0.25, z, 0.16 + 0.16 * gd, 0.19 + 0.07 * gd, 0.05 + 0.02 * gd, 2, ph, len, ca, cm);
+  for (let s = 0; s < 14; s++) PART.push(x, h - 0.25, z, len, 0.15 + rnd() * 0.85, ph, ca + 7 * Math.round(cm * 1000), 2);
   k++;
 }
 // 植物・スポンジ・サンゴ
 const IRI = [[0.55, 0.2, 0.75], [0.85, 0.3, 0.7], [0.4, 0.25, 0.85], [0.95, 0.45, 0.8]];
 for (let k = 0, tries = 0; k < 380 && tries < 20000; tries++) {
-  const x = rnd() * 100, z = (rnd() * 2 - 1) * 24, h = H(x, z);
+  const x = rnd() * 100, z = (rnd() * 2 - 1) * 24, h = Hd(x, z);
   if (h > -2 || inCorridor(x, z, 2.2)) continue;
   const c = IRI[k % 4], s = 0.6 + rnd() * 1.2;
   push(L.fan, rnd() * PI2, 0, (rnd() - 0.5) * 0.3, s, s * (0.8 + rnd() * 0.6), s, x, h - 0.1, z, c[0], c[1], c[2], 3, rnd() * PI2, s, 0, 0);
   k++;
 }
-for (let k = 0, tries = 0; k < 2600 && tries < 30000; tries++) {
-  const x = -1 + rnd() * 100, z = (rnd() * 2 - 1) * 24, h = H(x, z);
+for (let k = 0, tries = 0; k < 1700 && tries < 30000; tries++) {
+  const x = -1 + rnd() * 100, z = (rnd() * 2 - 1) * 24, h = Hd(x, z);
   if (h > -1.5 || vfbm(x * 0.09 + 3, 1, z * 0.09, 2) < 0.45) continue;
   const s = 0.7 + rnd() * 1.1, m = rnd();
   push(L.tuft, rnd() * PI2, 0, 0, s, s, s, x, h - 0.05, z, 0.85 + 0.15 * m, 0.08 + 0.2 * m, 0.45 + 0.2 * m, 6, rnd() * PI2, 1, 0, 0);
   k++;
 }
 for (let k = 0, tries = 0; k < 130 && tries < 10000; tries++) {
-  const x = 3 + rnd() * 95, z = (rnd() * 2 - 1) * 22, h = H(x, z);
+  const x = 3 + rnd() * 95, z = (rnd() * 2 - 1) * 22, h = Hd(x, z);
   if (h > -2.5 || inCorridor(x, z, 1.8)) continue;
   const s = 0.6 + rnd() * 0.9, o = rnd();
   push(L.sponge, rnd() * PI2, 0, (rnd() - 0.5) * 0.2, s, s * (0.8 + rnd()), s, x, h - 0.15, z, 0.85, 0.42 + 0.3 * o, 0.12 + 0.1 * o, 4, 0, 0, 0, 0);
@@ -657,7 +660,7 @@ for (let k = 0, tries = 0; k < 130 && tries < 10000; tries++) {
 }
 const CC = [[1.0, 0.35, 0.5], [1.0, 0.55, 0.2], [0.3, 0.85, 0.8], [0.9, 0.3, 0.85]];
 for (let k = 0, tries = 0; k < 260 && tries < 10000; tries++) {
-  const x = 2 + rnd() * 95, z = (rnd() * 2 - 1) * 22, h = H(x, z);
+  const x = 2 + rnd() * 95, z = (rnd() * 2 - 1) * 22, h = Hd(x, z);
   if (h > -2 || inCorridor(x, z, 1.6)) continue;
   const c = CC[k % 4], s = 0.6 + rnd() * 1.0;
   push(L.coral, rnd() * PI2, 0, 0, s, s, s, x, h - 0.1, z, c[0], c[1], c[2], 5, 0, 0, 0, 0);
@@ -665,7 +668,7 @@ for (let k = 0, tries = 0; k < 260 && tries < 10000; tries++) {
 }
 // 岩・オーバーハング・浮遊岩
 for (let k = 0; k < 150; k++) {
-  const x = -6 + rnd() * 110, z = (rnd() * 2 - 1) * 30, h = H(x, z);
+  const x = -6 + rnd() * 110, z = (rnd() * 2 - 1) * 30, h = Hd(x, z);
   if ((inCorridor(x, z, 2.5) && h < -2) || (x < 4 && z > -4 && z < 10) || nearSet(x, z)) continue;
   const s = 0.4 + rnd() * rnd() * 2.6;
   push(L.rock[k % 3], rnd() * PI2, (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.5, s * (1 + rnd() * 0.6), s * (0.5 + rnd() * 0.5), s * (1 + rnd() * 0.5),
@@ -709,7 +712,7 @@ for (const [cx, cy, cz, R, sp, sz] of [[32, -3.2, 6, 14, 0.07, 2.8], [46, -4.5, 
 for (let k = 0; k < 2600; k++) PART.push(rnd() * 26, rnd() * 26, rnd() * 26, 0.008 + rnd() * rnd() * 0.03, rnd(), 0, 0, 0);
 const VENTS = [[12, 4], [24, -5], [33, 13], [50, -10], [28, 9], [65, 8], [17, -9], [40, 3]];
 for (const [vx, vz] of VENTS) {
-  const fy = H(vx, vz) - 0.1;
+  const fy = Hd(vx, vz) - 0.1;
   for (let k = 0; k < 70; k++) PART.push(vx + (rnd() - 0.5) * 0.6, fy, vz + (rnd() - 0.5) * 0.6, 0.012 + rnd() * 0.03, 0.5 + rnd() * 0.9, rnd(), rnd() * 0.25, 1);
 }
 
@@ -924,7 +927,7 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
   var w = vec3f(dot(M[0], vec4f(lp, 1.0)), dot(M[1], vec4f(lp, 1.0)), dot(M[2], vec4f(lp, 1.0)));
   let c0 = vec3f(M[0].x, M[1].x, M[2].x); let c1 = vec3f(M[0].y, M[1].y, M[2].y); let c2 = vec3f(M[0].z, M[1].z, M[2].z);
   let nn = cross(c1, c2) * v.n.x + cross(c2, c0) * v.n.y + cross(c0, c1) * v.n.z;
-  if (mat == 2) { let s = sway(v.a.x, v.q.x, v.q.y); w.x += s.x; w.z += s.y; }
+  if (mat == 2) { let s = sway(v.a.x, v.q.x, v.q.y) + vec2f(cos(v.q.z), sin(v.q.z)) * v.q.w * v.a.x * v.a.x * v.q.y; w.x += s.x; w.z += s.y; }
   if (mat == 3 || mat == 6) {
     let k = v.a.x * v.a.x * v.q.y;
     w.x += sin(t * 0.9 + v.q.x + v.a.x) * 0.08 * k; w.z += cos(t * 0.7 + v.q.x * 1.3) * 0.06 * k;
@@ -979,19 +982,19 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
         let wet = 1.0 - smoothstep(-0.2, 0.8, p.y);
         alb = mix(rock * 0.9, vec3f(0.2, 0.32, 0.12) * (0.7 + 0.5 * fine), smoothstep(0.75, 0.9, n.y) * smoothstep(0.8, 2.0, p.y)) * (1.0 - 0.45 * wet);
       }
-      cav = 0.45 + 0.75 * smoothstep(0.25, 0.7, nz);
+      cav = 0.6 + 0.7 * smoothstep(0.25, 0.7, nz);
       sp = 0.08; gl = 20.0;
     }
     case 2: {
       let leaf = i.a.y;
       let lt = max(leaf - 1.0, 0.0);
       alb = i.c.rgb * (0.45 + 0.55 * i.a.x) * (0.8 + 0.35 * n3(p * 4.0));
-      if (leaf > 0.5) { alb *= (0.7 + 0.5 * lt) * (0.85 + 0.15 * sin(lt * 40.0)); alb = mix(alb, alb * vec3f(1.35, 1.1, 0.5), 0.4); }
+      if (leaf > 0.5) { alb *= (0.7 + 0.5 * lt); alb = mix(alb, alb * vec3f(1.35, 1.1, 0.5), 0.4); }
       tr = 0.25; sp = 0.25; gl = 30.0; cav = 0.35 + 0.65 * i.a.x;
     }
     case 3: {
       let fr = 1.0 - abs(dot(n, V));
-      let iri = 0.5 + 0.5 * cos(6.2831 * (vec3f(0.0, 0.33, 0.67) + fr * 1.1 + i.a.x * 0.6 + i.c.r));
+      let iri = 0.5 + 0.5 * cos(6.2831 * (vec3f(0.0, 0.33, 0.67) + fr * 1.4 + i.a.x * 0.5 + i.c.r * 0.7 + 0.85));
       alb = mix(i.c.rgb, iri * vec3f(1.0, 0.55, 1.0), 0.75) * (0.5 + 0.7 * i.a.x);
       em = iri * vec3f(0.6, 0.25, 0.8) * fr * fr * 0.18 * i.a.x;
       tr = 0.7; sp = 0.6; gl = 40.0; cav = 0.4 + 0.6 * i.a.x;
@@ -1008,8 +1011,8 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
     }
     case 6: {
       alb = i.c.rgb * (0.4 + 0.8 * i.a.x);
-      em = i.c.rgb * pow(i.a.x, 6.0) * 0.18;
-      tr = 0.6; cav = 0.3 + 0.7 * i.a.x;
+      em = i.c.rgb * (0.025 + pow(i.a.x, 4.0) * 0.12);
+      tr = 0.6; cav = 0.5 + 0.5 * i.a.x;
     }
     case 7, 8, 12: {
       let y = i.a.y;
@@ -1164,11 +1167,14 @@ struct PO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
     al = smoothstep(0.0, 0.04, f) * smoothstep(-0.05, -0.4, y);
     col = vec3f(0.6, 0.85, 0.95) * 0.9;
   } else {
-    let s = sway(v.d1.x, v.d1.y, v.d0.w);
-    sz = 0.02 + 0.02 * fract(v.d1.z * 5.3);
-    p = vec3f(v.d0.x + cos(v.d1.z) * 0.14 + s.x, v.d0.y + v.d1.x * v.d0.w, v.d0.z + sin(v.d1.z) * 0.14 + s.y);
-    let tw = 0.5 + 0.5 * sin(t * (1.5 + h12(v.d1.zz) * 3.0) + v.d1.z * 17.0);
-    col = mix(vec3f(1.0, 0.75, 0.25), vec3f(0.55, 1.0, 0.35), step(0.6, fract(v.d1.z * 3.7))) * (0.3 + 3.0 * pow(tw, 6.0));
+    let cm = floor(v.d1.z / 7.0) / 1000.0;
+    let ca = v.d1.z - floor(v.d1.z / 7.0) * 7.0;
+    let ra = h12(vec2f(v.d1.x, v.d1.y)) * 6.2831;
+    let s = sway(v.d1.x, v.d1.y, v.d0.w) + vec2f(cos(ca), sin(ca)) * cm * v.d1.x * v.d1.x * v.d0.w;
+    sz = 0.025 + 0.025 * fract(ra * 5.3);
+    p = vec3f(v.d0.x + cos(ra) * 0.16 + s.x, v.d0.y + v.d1.x * v.d0.w, v.d0.z + sin(ra) * 0.16 + s.y);
+    let tw = 0.5 + 0.5 * sin(t * (1.5 + h12(v.d1.xy * 7.0) * 3.0) + ra * 17.0);
+    col = mix(vec3f(1.0, 0.75, 0.25), vec3f(0.55, 1.0, 0.35), step(0.6, fract(ra * 3.7))) * (0.5 + 4.0 * pow(tw, 6.0));
   }
   col *= transm(p);
   var c = u.vp * vec4f(p, 1.0);
