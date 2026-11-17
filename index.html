@@ -445,15 +445,15 @@ function fishMesh() {
 // ---- マンタ(ノーズ +X, 翼 ±Z)
 function mantaMesh() {
   const m = newMesh();
-  surf(m, 20, 28, (u, v, o) => {
+  surf(m, 24, 40, (u, v, o) => {
     const zn = v * 2 - 1, az = Math.abs(zn);
-    const le = 0.42 * (1 - Math.pow(az, 1.6)) - 0.05 * az, te = -0.32 * Math.pow(1 - az, 0.6) + 0.12 * az;
+    const le = 0.42 * (1 - Math.pow(az, 1.6)) - 0.16 * az + 0.14 * Math.exp(-Math.pow((az - 0.13) / 0.05, 2)), te = -0.3 * Math.pow(1 - az, 0.7) - 0.19 * az;
     const top = u < 0.5, c = top ? u * 2 : (1 - u) * 2;
     const x = le + (te - le) * c;
     const th = 0.11 * Math.pow(1 - az, 1.8) * Math.sin(Math.PI * c) + 0.004;
     o[0] = x; o[1] = (top ? th : -th * 0.45) + 0.03 * az * az; o[2] = zn; o[3] = az; o[4] = top ? 1 : -1;
   });
-  surf(m, 6, 10, (u, v, o) => { const r = 0.012 * (1 - v), a = u * PI2; o[0] = -0.28 - v * 0.9; o[1] = Math.sin(a) * r; o[2] = Math.cos(a) * r; o[3] = 0; o[4] = 1; });
+  surf(m, 6, 10, (u, v, o) => { const r = 0.016 * (1 - v), a = u * PI2; o[0] = -0.28 - v * 0.4; o[1] = Math.sin(a) * r; o[2] = Math.cos(a) * r; o[3] = 0; o[4] = 1; });
   return build(m);
 }
 // ---- 昆布(高さ 1 の単位空間)
@@ -1033,7 +1033,9 @@ fn basis(f: vec3f, pos: vec3f, s: f32, roll: f32, o: ptr<function, array<vec4f, 
     case 9: {
       let top = i.a.y > 0.0;
       let spot = smoothstep(0.62, 0.7, n3(i.l * 9.0));
-      alb = select(vec3f(0.85, 0.87, 0.9), mix(vec3f(0.05, 0.07, 0.12), vec3f(0.55, 0.6, 0.7), spot), top);
+      let belly = mix(vec3f(0.9, 0.91, 0.92), vec3f(0.12, 0.14, 0.2), smoothstep(0.55, 0.95, i.a.x));
+      let gill = 1.0 - smoothstep(0.004, 0.012, abs(fract(i.l.x * 40.0) - 0.5) * 0.05) * step(abs(i.l.x - 0.12), 0.08) * step(abs(i.a.x - 0.18), 0.06);
+      alb = select(belly * (0.6 + 0.4 * gill), mix(vec3f(0.05, 0.07, 0.12), vec3f(0.55, 0.6, 0.7), spot), top);
       sp = 0.3; gl = 30.0;
     }
     case 11: {
@@ -1926,14 +1928,16 @@ function frame(now) {
     if (p[7] !== undefined) {
       const m = L.manta, o = p[7] * 20;
       if (p[8] === undefined) {
-        for (let t = 0; t < 400; t += 0.5) {
+        p[8] = p[6];
+        for (let t = 0; t < 2000; t += 0.25) {
           const ang = t * m[o + 4] + m[o + 5], z = m[o + 2] + Math.sin(ang) * m[o + 3] * 0.75, x = m[o] + Math.cos(ang) * m[o + 3];
-          if (Math.abs(z) < 2.5 && x > 25 && x < 45) { p[8] = t; break; }
+          if (Math.abs(z) < 0.8 && x > 14 && x < 44) { p[8] = t; break; }
         }
       }
       const t = p[8], ang = t * m[o + 4] + m[o + 5];
       const mx = m[o] + Math.cos(ang) * m[o + 3], my = m[o + 1] + Math.sin(ang * 0.5 + m[o + 5]) * m[o + 6], mz = m[o + 2] + Math.sin(ang) * m[o + 3] * 0.75;
-      G.time = t; cam.tx = mx; cam.ty = my + 0.3; cam.tz = mz; cam.x = mx - 6.0; cam.y = Math.min(my + 2.0, -0.7); cam.z = mz + 3.0;
+      G.time = t; cam.tx = mx; cam.ty = my; cam.tz = mz;
+      cam.x = mx - 6.5; cam.y = Math.min(my + 2.6, -0.7); cam.z = mz + 0.5;
       cam.y = Math.max(cam.y, H(cam.x, cam.z) + 1);
     }
   } else if (bench.on) updateBench(dt);
